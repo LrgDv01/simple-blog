@@ -1,0 +1,20 @@
+import { Navigate, useLocation } from 'react-router-dom'
+import { useAppSelector } from '../app/hooks'
+import type { ReactNode } from 'react'   // ← standard import
+
+interface ProtectedRouteProps {
+  children: ReactNode
+}
+
+function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const user = useAppSelector((state) => state.auth.user)
+  const location = useLocation()
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  return <>{children}</>
+}
+
+export default ProtectedRoute

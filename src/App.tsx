@@ -12,6 +12,8 @@ import CreateBlog from './pages/CreateBlog'
 import EditBlog from './pages/EditBlog'
 import ProtectedRoute from './components/ProtectedRoute'
 
+import './App.css'
+
 function App() {
   const dispatch = useAppDispatch() // Dispatch function from Redux
   const { user } = useAppSelector((state) => state.auth) 
@@ -35,16 +37,16 @@ function App() {
   // Render the application with routing
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-50 w-full flex flex-col items-center">
+      <div className="min-h-screen bg-gray-500 w-full flex flex-col items-center">
         <Header />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-gray-400">
           <Routes>
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute> // Wrap Dashboard with ProtectedRoute
+                <ProtectedRoute>
                   <Dashboard />
                 </ProtectedRoute>
               }

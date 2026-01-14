@@ -9,6 +9,7 @@ import Register from './pages/Register'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import CreateBlog from './pages/CreateBlog'
+import PostDetail from './pages/PostDetail'
 import EditBlog from './pages/EditBlog'
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -59,6 +60,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/post/:id" element={<PostDetail />} />
             <Route
               path="/edit/:id"
               element={

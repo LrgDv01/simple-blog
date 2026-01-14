@@ -17,45 +17,54 @@ function Dashboard() {
   }, [dispatch, page])
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">Blog Posts</h2>
+    <div className="max-w-5xl mx-auto">
+      <div className="flex justify-between items-center mb-10">
+        <h2 className="text-4xl font-bold text-gray-900">Blog Posts</h2>
         {user && (
           <Link
             to="/create"
-            className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition"
+            className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition shadow-md"
           >
             Write New Post
           </Link>
         )}
       </div>
 
-      {loading && page === 0 ? (
-        <p className="text-center text-gray-500">Loading posts...</p>
+      {loading && posts.length === 0 ? (
+        <div className="grid gap-8">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-white rounded-xl shadow p-8 animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          ))}
+        </div>
       ) : posts.length === 0 ? (
-        <p className="text-center text-gray-500">No posts yet. Be the first to write one!</p>
+        <p className="text-center text-gray-500 py-12 text-xl">No posts yet. Be the first to write one!</p>
       ) : (
         <div className="grid gap-8">
           {posts.map((post) => (
-            <article key={post.id} className="bg-white rounded-xl shadow-md p-8 hover:shadow-lg transition">
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                <Link to={`/edit/${post.id}`} className="hover:text-indigo-600">
-                  {post.title}
-                </Link>
-              </h3>
-              <p className="text-gray-600 mb-4 line-clamp-3">{post.content}</p>
-              <div className="flex justify-between items-center text-sm text-gray-500">
-                <span>By {post.user_id ? (post.user_id === user?.id ? 'You' : 'Someone') : 'Anonymous'}</span>
-                <time>{format(new Date(post.created_at), 'MMM d, yyyy')}</time>
-              </div>
-              {post.user_id === user?.id && (
-                <div className="mt-4 flex gap-4">
-                  <Link to={`/edit/${post.id}`} className="text-indigo-600 hover:underline">
-                    Edit
+            <article
+              key={post.id}
+              className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300"
+            >
+              <div className="p-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                  <Link to={`/post/${post.id}`} className="hover:text-indigo-600 transition">
+                    {post.title}
                   </Link>
-                  {/* Delete button will come tomorrow */}
+                </h3>
+                <p className="text-gray-600 mb-4 line-clamp-3">{post.content}</p>
+                <div className="flex justify-between items-center text-sm text-gray-500">
+                  <span>By {post.author_email || 'Anonymous'}</span>
+                  <time>{format(new Date(post.created_at), 'MMM d, yyyy')}</time>
                 </div>
-              )}
+                <Link to={`/post/${post.id}`} className="mt-4 inline-block text-indigo-600 font-medium hover:underline">
+                  Read more →
+                </Link>
+              </div>
             </article>
           ))}
         </div>
@@ -66,17 +75,17 @@ function Dashboard() {
           <button
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
-            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+            className="px-6 py-3 bg-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-300 transition"
           >
             Previous
           </button>
-          <span className="self-center">
+          <span className="self-center text-gray-700">
             Page {page + 1} of {totalPages}
           </span>
           <button
             onClick={() => setPage((p) => p + 1)}
             disabled={page + 1 >= totalPages}
-            className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+            className="px-6 py-3 bg-gray-200 rounded-lg disabled:opacity-50 hover:bg-gray-300 transition"
           >
             Next
           </button>

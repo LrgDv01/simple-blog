@@ -45,7 +45,7 @@ function Dashboard() {
               </h3>
               <p className="text-gray-600 mb-4 line-clamp-3">{post.content}</p>
               <div className="flex justify-between items-center text-sm text-gray-500">
-                <span>By {post.user_id === user?.id ? 'You' : 'Someone'}</span>
+                <span>By {post.user_id ? (post.user_id === user?.id ? 'You' : 'Someone') : 'Anonymous'}</span>
                 <time>{format(new Date(post.created_at), 'MMM d, yyyy')}</time>
               </div>
               {post.user_id === user?.id && (

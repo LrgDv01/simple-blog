@@ -35,12 +35,20 @@ function App() {
     }
   }, [dispatch])
 
+  useEffect(() => {
+    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [])
+
   // Render the application with routing
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-500 w-full flex flex-col items-center">
+      <div className="min-h-screen bg-gray-500 w-full flex flex-col items-center dark">
         <Header />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-gray-400">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-gray-400 dark">
           <Routes>
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />

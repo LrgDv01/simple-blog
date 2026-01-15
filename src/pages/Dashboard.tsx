@@ -58,7 +58,8 @@ function Dashboard() {
                 </h3>
                 <p className="text-gray-600 mb-4 line-clamp-3">{post.content}</p>
                 <div className="flex justify-between items-center text-sm text-gray-500">
-                  <span>By {post.author_email || 'Anonymous'}</span>
+                  {/* <span>By {post.author_email || 'Anonymous'}</span> */}
+                  <span>By {post.user_id ? (post.user_id === user?.id ? 'You' : post.author_email) : 'Anonymous'}</span>
                   <time>{format(new Date(post.created_at), 'MMM d, yyyy')}</time>
                 </div>
                 <Link to={`/post/${post.id}`} className="mt-4 inline-block text-indigo-600 font-medium hover:underline">

@@ -46,25 +46,30 @@ function Dashboard() {
       ) : (
         <div className="grid gap-8">
           {posts.map((post) => (
-            <article
-              key={post.id}
-              className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300"
-            >
+            <article key={post.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
               <div className="p-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                  <Link to={`/post/${post.id}`} className="hover:text-indigo-600 transition">
-                    {post.title}
-                  </Link>
-                </h3>
-                <p className="text-gray-600 mb-4 line-clamp-3">{post.content}</p>
-                <div className="flex justify-between items-center text-sm text-gray-500">
-                  {/* <span>By {post.author_email || 'Anonymous'}</span> */}
-                  <span>By {post.user_id ? (post.user_id === user?.id ? 'You' : post.author_email) : 'Anonymous'}</span>
-                  <time>{format(new Date(post.created_at), 'MMM d, yyyy')}</time>
-                </div>
-                <Link to={`/post/${post.id}`} className="mt-4 inline-block text-indigo-600 font-medium hover:underline">
-                  Read more →
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+                <Link to={`/post/${post.id}`} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                {post.title}
                 </Link>
+              </h3>
+              
+              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
+                {post.content?.substring(0, 100)}
+              </p>
+
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-full bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+                  {post.author_email.charAt(0).toUpperCase()}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  By <span className="font-medium">{user && post.user_id === user?.id ? 'You' : post.author_email || 'Anonymous'}</span> • {format(new Date(post.created_at), 'MMM d, yyyy')}
+                </p>
+              </div>
+
+              <Link to={`/post/${post.id}`} className="inline-flex items-center text-indigo-600 dark:text-indigo-400 font-medium hover:underline transition-colors gap-1">
+                Read more <span>→</span>
+              </Link>
               </div>
             </article>
           ))}

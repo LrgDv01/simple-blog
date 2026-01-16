@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { fetchPost, deletePost, clearCurrentPost } from '../features/blog/blogSlice'
 import { format } from 'date-fns'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 function PostDetail() {
   const { id } = useParams<{ id: string }>()
@@ -38,16 +40,21 @@ function PostDetail() {
 
   return (
     <article className="max-w-4xl mx-auto mt-12 bg-white rounded-xl shadow-lg p-8 md:p-12">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">{currentPost.title}</h1>
-        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-          <span>By {currentPost.author_email || 'Anonymous'}</span>
-          <time>{format(new Date(currentPost.created_at), 'MMMM d, yyyy')}</time>
+      <header className="mb-8 flex items-center gap-4">
+        <div className="w-16 h-16 rounded-full bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-2xl font-bold text-white">
+          {currentPost.author_email.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">{currentPost.title}</h1>
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+            <span>By {currentPost.author_email || 'Anonymous'}</span>
+            <time>{format(new Date(currentPost.created_at), 'MMMM d, yyyy')}</time>
+          </div>
         </div>
       </header>
 
       <div className="prose prose-lg max-w-none text-gray-800 leading-relaxed">
-        <p className="whitespace-pre-wrap">{currentPost.content}</p>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentPost.content}</ReactMarkdown>
       </div>
 
       {isOwner && (

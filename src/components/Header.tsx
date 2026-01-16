@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '../app/hooks'
 import { signOut } from '../features/auth/authSlice'
+import { useTheme } from '../context/ThemeContext'
 
 function Header() {
   const user = useAppSelector((state) => state.auth.user)
@@ -11,6 +12,7 @@ function Header() {
     await dispatch(signOut())
     navigate('/login')
   }
+  const { isDark, toggleTheme } = useTheme()
 
   return (
     <header className="bg-white shadow-sm border-b w-full">
@@ -18,7 +20,7 @@ function Header() {
         <Link to="/dashboard" className="text-3xl font-bold text-indigo-600">
           Simple Blog - Welcome {user?.email ? user.email.split('@')[0] : 'Guest'}
         </Link>
-        <nav className="flex items-center space-x-6">
+        <nav className="flex items-center space-x-6">       
           {user ? (
             <>
               <Link to="/dashboard" className="text-gray-700 hover:text-indigo-600 font-medium">
@@ -44,6 +46,12 @@ function Header() {
               </Link>
             </>
           )}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          >
+            {isDark ? '☀️' : '🌙'}
+          </button>
         </nav>
       </div>
     </header>

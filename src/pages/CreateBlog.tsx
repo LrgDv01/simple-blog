@@ -45,7 +45,7 @@ function CreateBlog() {
             <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
             <input
               {...register('title')}
-              className="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="Enter a catchy title..."
             />
             {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
@@ -56,7 +56,7 @@ function CreateBlog() {
             <textarea
               {...register('content')}
               rows={12}
-              className="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="Write your story..."
             />
             {errors.content && <p className="mt-1 text-sm text-red-600">{errors.content.message}</p>}
@@ -67,7 +67,7 @@ function CreateBlog() {
             <input
               {...register('author_email')}
               type="email"
-              className="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="your@email.com"
             />
             {errors.author_email && <p className="mt-1 text-sm text-red-600">{errors.author_email.message}</p>}

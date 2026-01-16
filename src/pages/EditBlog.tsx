@@ -68,7 +68,7 @@ function EditBlog() {
             <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
             <input
               {...register('title')}
-              className="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
             />
             {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
           </div>
@@ -78,7 +78,7 @@ function EditBlog() {
             <textarea
               {...register('content')}
               rows={12}
-              className="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
             />
             {errors.content && <p className="mt-1 text-sm text-red-600">{errors.content.message}</p>}
           </div>

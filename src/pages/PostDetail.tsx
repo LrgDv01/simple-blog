@@ -45,7 +45,7 @@ function PostDetail() {
           {currentPost.author_email.charAt(0).toUpperCase()}
         </div>
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">{currentPost.title}</h1>
+          <h1 className="text-4xl font-bold dark:text-gray-500 mb-2">{currentPost.title}</h1>
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
             <span>By {currentPost.author_email || 'Anonymous'}</span>
             <time>{format(new Date(currentPost.created_at), 'MMMM d, yyyy')}</time>

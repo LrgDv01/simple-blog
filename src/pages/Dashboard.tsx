@@ -46,7 +46,7 @@ function Dashboard() {
       ) : (
         <div className="grid gap-8">
           {posts.map((post) => (
-            <article key={post.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
+            <article key={post.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
               <div className="p-8">
               <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
                 <Link to={`/post/${post.id}`} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">

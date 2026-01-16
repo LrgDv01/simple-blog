@@ -43,7 +43,7 @@ function Login() {
   return (
     <div className="max-w-md mx-auto mt-12">
       <div className="bg-white rounded-xl shadow-lg p-8">
-        <h2 className="text-2xl font-bold text-center mb-8 text-gray-800">Welcome Back</h2>
+        <h2 className="text-2xl font-bold text-center mb-8 text-gray-800">Sign in</h2>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700">Email</label>

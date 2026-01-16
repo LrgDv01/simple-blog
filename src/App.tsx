@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useAppDispatch, useAppSelector } from './app/hooks'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom' // Change BrowserRouter to HashRouter
+import { useAppDispatch } from './app/hooks'
 import { useEffect } from 'react'
 import { setUser } from './features/auth/authSlice'
 import { supabase } from './lib/supabaseClient'
@@ -17,7 +17,7 @@ import './App.css'
 
 function App() {
   const dispatch = useAppDispatch() // Dispatch function from Redux
-  const { user } = useAppSelector((state) => state.auth) 
+  // const { user } = useAppSelector((state) => state.auth) 
 
   useEffect(() => {
     // Initial session
@@ -45,10 +45,10 @@ function App() {
 
   // Render the application with routing
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-gray-500 w-full flex flex-col items-center dark">
+    <HashRouter>
+      <div className="min-h-screen bg-gray-500 w-full flex flex-col items-center">
         <Header />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-gray-400 dark">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-gray-400 ">
           <Routes>
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
@@ -81,7 +81,7 @@ function App() {
           </Routes>
         </main>
       </div>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 

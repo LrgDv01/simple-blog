@@ -6,7 +6,7 @@
 @tailwind utilities;
 
 /* Custom global dark mode overrides */
-.dark {
+/* .dark {
   @apply bg-gray-900 text-gray-100;
 }
 
@@ -24,16 +24,16 @@
 
 .dark .border-gray-300 {
   @apply border-gray-600;
-}
+} */
 
 /* better code blocks in markdown */
-.prose pre {
+/* .prose pre {
   @apply bg-gray-800 dark:bg-gray-900 rounded-lg p-4 overflow-x-auto;
 }
 
 .prose code {
   @apply text-sm;
-}
+} */
 
 
 :root {

@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '../app/hooks'
 import { signOut } from '../features/auth/authSlice'
-import { useTheme } from '../context/ThemeContext'
+// import { useTheme } from '../context/ThemeContext'
 
 function Header() {
   const user = useAppSelector((state) => state.auth.user)
@@ -12,7 +12,7 @@ function Header() {
     await dispatch(signOut())
     navigate('/login')
   }
-  const { isDark, toggleTheme } = useTheme()
+  // const { isDark, toggleTheme } = useTheme()
 
   return (
     <header className="bg-white shadow-sm border-b w-full">
@@ -46,12 +46,12 @@ function Header() {
               </Link>
             </>
           )}
-          <button
+          {/* <button
             onClick={toggleTheme}
             className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           >
             {isDark ? '☀️' : '🌙'}
-          </button>
+          </button> */}
         </nav>
       </div>
     </header>

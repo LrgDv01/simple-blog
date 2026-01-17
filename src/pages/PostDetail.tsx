@@ -41,7 +41,7 @@ function PostDetail() {
   return (
     <article className="max-w-4xl mx-auto mt-12 bg-white rounded-xl shadow-lg p-8 md:p-12">
       <header className="mb-8 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-2xl font-bold text-white">
+        <div className="flex-shrink-0 w-16 h-16 rounded-full bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-2xl font-bold text-white">
           {currentPost.author_email.charAt(0).toUpperCase()}
         </div>
         <div>

@@ -3,6 +3,7 @@ import { useAppSelector, useAppDispatch } from '../app/hooks'
 import { fetchPosts } from '../features/blog/blogSlice'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
+import ImageUpload from '../components/ImageUpload'
 
 function Dashboard() {
   const dispatch = useAppDispatch()
@@ -19,6 +20,7 @@ function Dashboard() {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-10">
+        <ImageUpload onUpload={console.log} />
         <h2 className="text-4xl font-bold text-gray-900">Blog Posts</h2>
         {user && (
           <Link

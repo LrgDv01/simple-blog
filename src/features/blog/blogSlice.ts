@@ -1,16 +1,20 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { supabase } from '../../lib/supabaseClient'
-import type { Post } from '../../types/post'
+import type { Post, Comment } from '../../types/post'
 
+// Define the state interface
 interface BlogsState {
   posts: Post[]
   currentPost: Post | null
+  comments: Comment[]
   loading: boolean
   loadingSingle: boolean
+  loadingComments: boolean
   error: string | null
   totalCount: number
 }
 
+// Initial state
 const initialState: BlogsState = {
   posts: [],
   currentPost: null,
@@ -18,10 +22,46 @@ const initialState: BlogsState = {
   loadingSingle: false,
   error: null,
   totalCount: 0,
+  comments: [],
+  loadingComments: false,
 }
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 10 // Number of posts per page
 
+// Async thunk to fetch comments for a specific post
+export const fetchComments = createAsyncThunk(
+  'blogs/fetchComments',
+  async (postId: string) => {
+    const { data, error } = await supabase    
+      .from('comments')
+      .select('*')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    return data as Comment[]
+  }
+)
+
+// Async thunk to create a new comment
+export const createComment = createAsyncThunk(
+  'blogs/createComment',
+  async ({ postId, content, image_url, author_email }: {
+    postId: string
+    content: string
+    image_url?: string
+    author_email: string
+  }) => {
+    const { data, error } = await supabase
+      .from('comments')
+      .insert({ post_id: postId, content, image_url, author_email })
+      .select()
+      .single()
+    if (error) throw error
+    return data as Comment
+  }
+)
+
+// Async thunks for CRUD operations
 export const fetchPosts = createAsyncThunk(
   'blogs/fetchPosts',
   async (page: number = 0) => {
@@ -42,17 +82,25 @@ export const fetchPosts = createAsyncThunk(
   }
 )
 
-export const fetchPost = createAsyncThunk('blogs/fetchPost', async (id: string) => {
-  const { data, error } = await supabase
-    .from('posts')
-    .select('id, title, content, created_at, author_email, user_id')
-    .eq('id', id)
-    .single()
+// Fetch a single post by ID
+export const fetchPost = createAsyncThunk(
+  'blogs/fetchPost',
+  async ({ id }: { id: string }, { dispatch}) => {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('id, title, content, created_at, author_email, user_id, image_url')
+      .eq('id', id)
+      .single()
 
-  if (error) throw error
-  return data as Post
+    if (error) throw error
+
+    // dispatch to load comments for the post
+    dispatch(fetchComments(id))
+
+    return data as Post
 })
 
+// Create a new post
 export const createPost = createAsyncThunk(
   'blogs/createPost',
   async ({ title, content, author_email }: { title: string; content: string; author_email: string }) => {
@@ -66,6 +114,7 @@ export const createPost = createAsyncThunk(
   }
 )
 
+// Update an existing post
 export const updatePost = createAsyncThunk(
   'blogs/updatePost',
   async ({ id, title, content, author_email }: { id: string; title: string; content: string; author_email: string }) => {
@@ -80,12 +129,14 @@ export const updatePost = createAsyncThunk(
   }
 )
 
+// Delete a post
 export const deletePost = createAsyncThunk('blogs/deletePost', async (id: string) => {
   const { error } = await supabase.from('posts').delete().eq('id', id)
   if (error) throw error
   return id
 })
 
+// Create the blog slice
 const blogSlice = createSlice({
   name: 'blogs',
   initialState,
@@ -94,6 +145,7 @@ const blogSlice = createSlice({
       state.currentPost = null
     },
   },
+  // Reducers for async operations
   extraReducers: (builder) => {
     builder
       // fetchPosts
@@ -137,6 +189,43 @@ const blogSlice = createSlice({
         state.posts = state.posts.filter((p) => p.id !== action.payload)
         state.totalCount -= 1
         if (state.currentPost?.id === action.payload) state.currentPost = null
+      })
+
+      // fetchComments
+      .addCase(fetchComments.pending, (state) => {
+        state.loadingComments = true  
+      })
+      .addCase(fetchComments.fulfilled, (state, action) => {
+        state.loadingComments = false
+        state.comments = action.payload
+      })
+      .addCase(fetchComments.rejected, (state, action) => {
+        state.loadingComments = false
+        state.error = action.error.message ?? 'Failed to load comments'
+      })
+      // Optimistic create comment
+      .addCase(createComment.pending, (state, action) => {
+        const tempId = 'temp-' + Date.now()
+        const optimisticComment: Comment = {
+          id: tempId,
+          post_id: action.meta.arg.postId,
+          user_id: null,
+          content: action.meta.arg.content,
+          author_email: action.meta.arg.author_email,
+          image_url: action.meta.arg.image_url,
+          created_at: new Date().toISOString(),
+        }
+        state.comments.push(optimisticComment)
+      })
+      .addCase(createComment.fulfilled, (state, action) => {
+        // Replace temp comment with real one
+        state.comments = state.comments.map(c => 
+          c.id.startsWith('temp-') ? action.payload : c
+        )
+      })
+      .addCase(createComment.rejected, (state) => {
+        // Remove the optimistic comment on failure
+        state.comments = state.comments.filter(c => !c.id.startsWith('temp-'))
       })
   },
 })

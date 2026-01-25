@@ -31,10 +31,11 @@ function App() {
     })
 
     return () => {
-      listener.subscription.unsubscribe()
+      listener.subscription.unsubscribe() // Cleanup subscription on unmount
     }
-  }, [dispatch])
+  }, [dispatch]) // Empty dependency array ensures this runs once on mount
 
+  // Apply dark mode based on user preference
   useEffect(() => {
     if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       document.documentElement.classList.add('dark')

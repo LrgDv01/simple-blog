@@ -14,9 +14,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Create and export the client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-    flowType: 'pkce',
+    autoRefreshToken: true, // Automatically refresh tokens
+    persistSession: true, // Keep user logged in across sessions
+    detectSessionInUrl: false, // Disable to avoid issues with redirects
+    flowType: 'pkce', // Use PKCE flow for better security in SPAs
   },
 })

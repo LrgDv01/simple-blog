@@ -4,11 +4,13 @@ import { z } from 'zod'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { createPost } from '../features/blog/blogSlice'
 import { useNavigate } from 'react-router-dom'
+import ImageUpload from '../components/ImageUpload'
+import { useState } from 'react'
+import toast from 'react-hot-toast'
 
 const schema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
   content: z.string().min(20, 'Content must be at least 20 characters'),
-  author_email: z.string().email('Please enter a valid email'),
 })
 
 type FormData = z.infer<typeof schema>
@@ -17,6 +19,7 @@ function CreateBlog() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { user } = useAppSelector((state) => state.auth)
+  const [imageUrl, setImageUrl] = useState<string | undefined>()
 
   const {
     register,
@@ -27,50 +30,50 @@ function CreateBlog() {
   })
 
   const onSubmit = async (data: FormData) => {
+    if (!user?.email) {
+      toast.error('You must be logged in')
+      return
+    }
+
     await dispatch(
       createPost({
-        ...data, 
-        author_email: user?.email || 'anonymous@example.com',
+        title: data.title,
+        content: data.content,
+        image_url: imageUrl,
+        author_email: user.email,
       })
     ).unwrap()
+
+    toast.success('Post published!')
     navigate('/dashboard')
   }
 
   return (
-    <div className="max-w-3xl mx-auto mt-12">
-      <div className="bg-white rounded-xl shadow-lg p-8">
-        <h2 className="text-2xl font-bold mb-8 text-gray-800">Write a New Post</h2>
+    <div className="max-w-4xl mx-auto mt-12">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
+        <h2 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100">Write a New Post</h2>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
             <input
               {...register('title')}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700"
               placeholder="Enter a catchy title..."
             />
             {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
           </div>
 
+          <ImageUpload onUpload={setImageUrl} />
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Content</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Content (Markdown supported)</label>
             <textarea
               {...register('content')}
               rows={12}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Write your story..."
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700"
+              placeholder="Write your story... **bold**, *italic*, lists, etc."
             />
             {errors.content && <p className="mt-1 text-sm text-red-600">{errors.content.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Author Email</label>
-            <input
-              {...register('author_email')}
-              type="email"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="your@email.com"
-            />
-            {errors.author_email && <p className="mt-1 text-sm text-red-600">{errors.author_email.message}</p>}
           </div>
 
           <div className="flex justify-end">

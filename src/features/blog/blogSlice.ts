@@ -71,7 +71,7 @@ export const fetchPosts = createAsyncThunk(
     const [{ data: posts, count, error: postsError }] = await Promise.all([
       supabase
         .from('posts')
-        .select('id, title, content, created_at, author_email, user_id', { count: 'exact' })
+        .select('id, title, content, created_at, author_email, user_id, image_url', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(from, to),
     ])
@@ -103,10 +103,10 @@ export const fetchPost = createAsyncThunk(
 // Create a new post
 export const createPost = createAsyncThunk(
   'blogs/createPost',
-  async ({ title, content, author_email }: { title: string; content: string; author_email: string }) => {
+  async ({ title, content, author_email, image_url }: { title: string; content: string; author_email: string; image_url?: string }) => {
     const { data, error } = await supabase
       .from('posts')
-      .insert({ title, content, author_email })
+      .insert({ title, content, author_email, image_url })
       .select()
       .single()
     if (error) throw error
@@ -117,10 +117,14 @@ export const createPost = createAsyncThunk(
 // Update an existing post
 export const updatePost = createAsyncThunk(
   'blogs/updatePost',
-  async ({ id, title, content, author_email }: { id: string; title: string; content: string; author_email: string }) => {
+  async ({ id, title, content, author_email, image_url }: { id: string; title: string; content: string; author_email: string; image_url?: string }) => {
+    // Prepare update object
+    const updates: any = { title, content, author_email }
+    if (image_url !== undefined) updates.image_url = image_url // only include if provided
+    
     const { data, error } = await supabase
       .from('posts')
-      .update({ title, content, author_email })
+      .update(updates)
       .eq('id', id)
       .select()
       .single()
@@ -219,7 +223,7 @@ const blogSlice = createSlice({
       })
       .addCase(createComment.fulfilled, (state, action) => {
         // Replace temp comment with real one
-        state.comments = state.comments.map(c => 
+        state.comments = state.comments.map(c =>
           c.id.startsWith('temp-') ? action.payload : c
         )
       })

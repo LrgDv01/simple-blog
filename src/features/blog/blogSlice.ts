@@ -45,15 +45,16 @@ export const fetchComments = createAsyncThunk(
 // Async thunk to create a new comment
 export const createComment = createAsyncThunk(
   'blogs/createComment',
-  async ({ postId, content, image_url, author_email }: {
+  async ({ postId, user_id, content, image_url, author_email }: {
     postId: string
+    user_id: string
     content: string
     image_url?: string
     author_email: string
   }) => {
     const { data, error } = await supabase
       .from('comments')
-      .insert({ post_id: postId, content, image_url, author_email })
+      .insert({ post_id: postId, user_id, content, image_url, author_email })
       .select()
       .single()
     if (error) throw error
@@ -213,7 +214,7 @@ const blogSlice = createSlice({
         const optimisticComment: Comment = {
           id: tempId,
           post_id: action.meta.arg.postId,
-          user_id: null,
+          user_id: action.meta.arg.user_id,
           content: action.meta.arg.content,
           author_email: action.meta.arg.author_email,
           image_url: action.meta.arg.image_url,

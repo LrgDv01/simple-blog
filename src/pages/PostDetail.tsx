@@ -52,7 +52,7 @@ function PostDetail() {
   }
 
   const onCommentSubmit = async (data: CommentFormData) => {
-    if (!user?.email) {
+    if (!user?.email || !user?.id) {
       toast.error('You must be logged in to comment')
       return
     }
@@ -60,6 +60,7 @@ function PostDetail() {
     await dispatch(
       createComment({
         postId: id!,
+        user_id: user.id,
         content: data.content,
         image_url: commentImageUrl,
         author_email: user.email,

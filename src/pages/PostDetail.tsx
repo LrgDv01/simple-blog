@@ -27,7 +27,6 @@ function PostDetail() {
   const [commentImageUrl, setCommentImageUrl] = useState<string | undefined>()
 
   const isOwner = currentPost?.user_id === user?.id
-  console.log('comments:', comments)
   const {
     register,
     handleSubmit,
@@ -107,7 +106,7 @@ function PostDetail() {
                 {currentPost.title}
               </h1>
               <div className="flex flex-wrap items-center gap-6 text-lg text-gray-600 dark:text-gray-400">
-                <span>By {currentPost.user_id ? currentPost.author_email : 'Anonymous'}</span>
+                <span>By {currentPost.user_id === user?.id ? 'You' : ( currentPost.user_id ? currentPost.author_email : 'Anonymous')}</span>
                 <time>{format(new Date(currentPost.created_at), 'MMMM d, yyyy')}</time>
               </div>
             </div>
@@ -194,7 +193,7 @@ function PostDetail() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="font-semibold text-gray-900 dark:text-gray-100">
-                        {comment.user_id ? comment.author_email : 'Anonymous'}
+                        {comment.user_id === user?.id ? 'You' : ( comment.user_id ? comment.author_email : 'Anonymous')}
                       </span>
                       <time className="text-sm text-gray-500">
                         {format(new Date(comment.created_at), 'MMM d, yyyy')}

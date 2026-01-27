@@ -35,6 +35,9 @@ function Header() {
               >
                 Logout
               </button>
+              <Link to="/delete-account" className="text-red-600 hover:text-red-700 font-medium">
+                Delete Account
+              </Link>
             </>
           ) : (
             <>

@@ -62,13 +62,12 @@ function Dashboard() {
 
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-full bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
-                  {post.author_email.charAt(0).toUpperCase()}
+                  {post.user_id ? post.author_email.charAt(0).toUpperCase() : 'A'}  
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-500">
-                  By <span className="font-medium">{user && post.user_id === user?.id ? 'You' : post.author_email || 'Anonymous'}</span> • {format(new Date(post.created_at), 'MMM d, yyyy')}
+                <p className="text-xs text-gray-500 dark:text-gray-500">   
+                  By <span className="font-medium">{ post.user_id === user?.id ? 'You' : ( post.user_id ? post.author_email : 'Anonymous')}</span> • {format(new Date(post.created_at), 'MMM d, yyyy')}
                 </p>
               </div>
-
               <Link to={`/post/${post.id}`} className="inline-flex items-center text-indigo-600 dark:text-indigo-400 font-medium hover:underline transition-colors gap-1">
                 Read more <span>→</span>
               </Link>

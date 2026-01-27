@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard'
 import CreateBlog from './pages/CreateBlog'
 import PostDetail from './pages/PostDetail'
 import EditBlog from './pages/EditBlog'
+import DeleteAccount from './pages/DeleteAccount'
 import ProtectedRoute from './components/ProtectedRoute'
 
 import './App.css'
@@ -79,6 +80,14 @@ function App() {
               }
             />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/delete-account"
+              element={
+                <ProtectedRoute>
+                  <DeleteAccount />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </main>
       </div>

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
-import { fetchPost, deletePost, createComment, fetchComments } from '../features/blog/blogSlice'
+import { fetchPost, deletePost, createComment } from '../features/blog/blogSlice'
 import { format } from 'date-fns'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'

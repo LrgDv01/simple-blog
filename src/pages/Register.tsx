@@ -6,6 +6,7 @@ import { signUp } from '../features/auth/authSlice'
 import { Link, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 
+// Define the validation schema using Zod
 const schema = z.object({
   email: z.string().email('Invalid email'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -15,13 +16,15 @@ const schema = z.object({
   path: ['confirmPassword'],
 })
 
-type FormData = z.infer<typeof schema>
+type FormData = z.infer<typeof schema> // Infer the form data type from the schema
 
+// Register component
 function Register() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { user, loading, error } = useAppSelector((state) => state.auth)
 
+  // Initialize the form with react-hook-form and Zod resolver
   const {
     register,
     handleSubmit,
@@ -31,18 +34,23 @@ function Register() {
     resolver: zodResolver(schema),
   })
 
+  // Handle form submission
   const onSubmit = async (data: FormData) => {
     try {
+      setError('root', { message: '' })
       await dispatch(signUp({ email: data.email, password: data.password })).unwrap()
-      navigate('/dashboard')
     } catch (err: any) {
-      setError('root', { message: err.message || 'Registration failed' })
+      setError('root', { 
+        message: err.message || 'Registration failed. Please try again.' 
+      })
     }
   }
 
-  // Redirect if already logged in
+  // Redirect on successful registration
   useEffect(() => {
-    if (user) navigate('/dashboard')
+    if (user) {
+      navigate('/dashboard', { replace: true })
+    }
   }, [user, navigate])
 
   return (

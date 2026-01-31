@@ -3,6 +3,7 @@ import { useAppSelector, useAppDispatch } from '../app/hooks'
 import { signOut } from '../features/auth/authSlice'
 // import { useTheme } from '../context/ThemeContext'
 
+// Header component
 function Header() {
   const user = useAppSelector((state) => state.auth.user)
   const dispatch = useAppDispatch()
@@ -18,7 +19,10 @@ function Header() {
     <header className="bg-white shadow-sm border-b w-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
         <Link to="/dashboard" className="text-3xl font-bold text-indigo-600">
-          Simple Blog - Welcome {user?.email ? user.email.split('@')[0].replace(/\./g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Guest'}
+          Simple Blog - Welcome {user?.email ? (() => {
+            const emailName = user.email.split('@')[0];
+            return emailName.replace(/[._-]/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+          })() : 'Guest'}
         </Link>
         <nav className="flex items-center space-x-6">       
           {user ? (
@@ -35,8 +39,8 @@ function Header() {
               >
                 Logout
               </button>
-              <Link to="/delete-account" className="text-red-600 hover:text-red-700 font-medium">
-                Delete Account
+              <Link to="/deactivate-account" className="text-orange-600 hover:text-orange-700 font-medium">
+                Deactivate Account
               </Link>
             </>
           ) : (

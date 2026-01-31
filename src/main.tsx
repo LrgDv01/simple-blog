@@ -6,7 +6,9 @@ import App from './App'
 import './index.css'
 import { ThemeProvider } from './context/ThemeContext'
 import { Toaster } from 'react-hot-toast'
+import './diagnostics' // Load diagnostic tools for browser console
 
+// Render the root of the React application
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <Provider store={store}>

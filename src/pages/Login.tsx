@@ -6,18 +6,21 @@ import { signIn } from '../features/auth/authSlice'
 import { Link, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 
+// Define the validation schema using Zod
 const schema = z.object({
   email: z.string().email('Invalid email'),
   password: z.string().min(1, 'Password is required'),
 })
 
-type FormData = z.infer<typeof schema>
+type FormData = z.infer<typeof schema> // Infer the form data type from the schema
 
+// Login component
 function Login() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { user, loading, error } = useAppSelector((state) => state.auth)
 
+  // Initialize the form with react-hook-form and Zod resolver
   const {
     register,
     handleSubmit,
@@ -27,18 +30,25 @@ function Login() {
     resolver: zodResolver(schema),
   })
 
+  // Handle form submission
   const onSubmit = async (data: FormData) => {
     try {
+      setError('root', { message: '' })
       await dispatch(signIn(data)).unwrap()
-      navigate('/dashboard')
     } catch (err: any) {
-      setError('root', { message: err.message || 'Login failed' })
+      setError('root', { 
+        message: err.message || 'Login failed. Please check your credentials.' 
+      })
     }
   }
 
+  // Redirect on successful login
   useEffect(() => {
-    if (user) navigate('/dashboard')
+    if (user) {
+      navigate('/dashboard', { replace: true })
+    }
   }, [user, navigate])
+
 
   return (
     <div className="max-w-md mx-auto mt-12">
@@ -75,7 +85,15 @@ function Login() {
             {isSubmitting || loading ? 'Signing in...' : 'Login'}
           </button>
         </form>
-
+        
+        <p className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
+          Deactivated your account?  
+          <span className="ms-2 font-medium text-indigo-600 dark:text-indigo-400">
+            Just log in to reactivate!
+          </span>
+          <br />
+          Your content remains anonymous until you reactivate your account.
+        </p>
         <p className="mt-6 text-center text-sm text-gray-600">
           Don't have an account?{' '}
           <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">

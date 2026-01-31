@@ -1,14 +1,17 @@
+// Post interface definition
 export interface Post {
     id: string
-    user_id: string
+    user_id: string | null
     title: string
     content: string
     author_email: string
     created_at: string
     updated_at?: string
     image_url?: string | null
+    original_user_id?: string | null  // For account deactivation/reactivation
 }
 
+// Comment interface definition
 export interface Comment {
     id: string
     post_id: string
@@ -18,4 +21,5 @@ export interface Comment {
     image_url?: string | null
     created_at: string
     updated_at?: string
+    original_user_id?: string | null  // For account deactivation/reactivation
 }

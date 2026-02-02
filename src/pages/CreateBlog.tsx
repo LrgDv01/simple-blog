@@ -2,10 +2,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
-import { createPost } from '../features/blog/blogSlice'
+import { createPost, clearCurrentPost } from '../features/blog/blogSlice'
 import { useNavigate } from 'react-router-dom'
 import ImageUpload from '../components/ImageUpload'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import toast from 'react-hot-toast'
 import ReactMarkdown from 'react-markdown'
 
@@ -15,29 +15,70 @@ const schema = z.object({
   content: z.string().min(20, 'Content must be at least 20 characters'),
 })
 
-type FormData = z.infer<typeof schema> // Infer form data type from schema
+type FormData = z.infer<typeof schema>
 
-// CreateBlog component for writing and submitting new blog posts
 function CreateBlog() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { user } = useAppSelector((state) => state.auth)
+  const abortControllerRef = useRef<AbortController | null>(null)
   const [imageUrl, setImageUrl] = useState<string | undefined>()
   const [isPreview, setIsPreview] = useState(false)
   const [charCount, setCharCount] = useState(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Initialize react-hook-form with Zod validation
   const {
     register,
     handleSubmit,
     watch,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
+    defaultValues: {
+      title: '',
+      content: '',
+    }
   })
 
   const content = watch('content', '')
   const title = watch('title', '')
+
+  // Create new AbortController on mount
+  useEffect(() => {
+    abortControllerRef.current = new AbortController()
+    
+    return () => {
+      // Abort any ongoing requests when component unmounts
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
+      reset()
+      setImageUrl(undefined)
+      setIsSubmitting(false)
+    }
+  }, [reset])
+
+  // Handle page visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Page is hidden - abort ongoing operations
+        if (abortControllerRef.current && isSubmitting) {
+          abortControllerRef.current.abort()
+          setIsSubmitting(false)
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [isSubmitting])
 
   // Update character count
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -58,9 +99,18 @@ function CreateBlog() {
       return
     }
     
+    // Prevent multiple submissions
+    if (isSubmitting) return
+    
+    // Create new AbortController for this submission
+    abortControllerRef.current = new AbortController()
+    const signal = abortControllerRef.current.signal
+    
+    setIsSubmitting(true)
+    
     try {
-      // Create the post
-      await dispatch(
+      // Create the post with abort signal
+      const result = await dispatch(
         createPost({
           title: data.title,
           content: data.content,
@@ -68,6 +118,11 @@ function CreateBlog() {
           author_email: user.email,
         })
       ).unwrap()
+
+      // Check if request was aborted
+      if (signal.aborted) {
+        return
+      }
 
       toast.success(
         <div className="flex items-center space-x-2">
@@ -79,19 +134,37 @@ function CreateBlog() {
         { duration: 4000 }
       )
       
-      navigate('/dashboard')
-    } catch (error) {
+      // Reset form state
+      reset()
+      setImageUrl(undefined)
+      setIsSubmitting(false)
+      
+      // Navigate after a short delay
+      setTimeout(() => {
+        navigate('/dashboard')
+      }, 500)
+      
+    } catch (error: any) {
+      // Check if error is due to abort
+      if (error.name === 'AbortError' || signal.aborted) {
+        console.log('Request was aborted')
+        return
+      }
+      
+      setIsSubmitting(false)
+      
+      const errorMessage = error?.message || 'Failed to publish post. Please try again.'
       toast.error(
         <div className="flex items-center space-x-2">
           <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.732 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
-          <span>Failed to publish post. Please try again.</span>
+          <span>{errorMessage}</span>
         </div>
       )
     }
   }
-
+  
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12">
       <div className="max-w-5xl mx-auto px-4">
@@ -117,6 +190,7 @@ function CreateBlog() {
                     ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
+                disabled={isSubmitting}
               >
                 <div className="flex items-center justify-center space-x-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,6 +207,7 @@ function CreateBlog() {
                     ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
+                disabled={isSubmitting}
               >
                 <div className="flex items-center justify-center space-x-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,6 +240,7 @@ function CreateBlog() {
                       : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700'
                   }`}
                   placeholder="Craft a compelling title that captures attention..."
+                  disabled={isSubmitting}
                 />
                 {errors.title && (
                   <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
@@ -188,6 +264,7 @@ function CreateBlog() {
                   onUpload={setImageUrl} 
                   label="Upload a featured image for your post"
                   maxSizeMB={50}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -235,6 +312,7 @@ function CreateBlog() {
                           : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700'
                       }`}
                       placeholder="Write your story here... You can use **bold**, *italic*, `code`, lists, and more with Markdown."
+                      disabled={isSubmitting}
                     />
                     {errors.content && (
                       <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
@@ -274,6 +352,7 @@ function CreateBlog() {
                   type="button"
                   onClick={() => navigate('/dashboard')}
                   className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
@@ -283,6 +362,7 @@ function CreateBlog() {
                     type="button"
                     onClick={() => setIsPreview(!isPreview)}
                     className="px-6 py-3 border-2 border-indigo-300 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 font-medium rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors duration-200"
+                    disabled={isSubmitting}
                   >
                     {isPreview ? 'Continue Editing' : 'Preview Post'}
                   </button>

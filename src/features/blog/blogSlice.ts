@@ -10,6 +10,9 @@ interface BlogsState {
   loading: boolean
   loadingSingle: boolean
   loadingComments: boolean
+  creatingPost: boolean
+  updatingPost: boolean
+  deletingPost: boolean
   error: string | null
   totalCount: number
 }
@@ -24,6 +27,9 @@ const initialState: BlogsState = {
   totalCount: 0,
   comments: [],
   loadingComments: false,
+  creatingPost: false,
+  updatingPost: false,
+  deletingPost: false,
 }
 
 const PAGE_SIZE = 10 // Number of posts per page
@@ -178,6 +184,19 @@ const blogSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+       // createPost
+      .addCase(createPost.pending, (state) => {
+        state.creatingPost = true;
+      })
+      .addCase(createPost.fulfilled, (state, action) => {
+        state.creatingPost = false;
+        state.posts.unshift(action.payload)
+        state.totalCount += 1
+      })
+      .addCase(createPost.rejected, (state, action) => {
+        state.creatingPost = false;
+        state.error = action.error.message ?? 'Failed to create post';
+      })
       // fetchPosts
       .addCase(fetchPosts.pending, (state) => {
         state.loading = true
@@ -203,24 +222,38 @@ const blogSlice = createSlice({
         state.loadingSingle = false
         state.error = action.error.message ?? 'Failed to load post'
       })
-      // create
-      .addCase(createPost.fulfilled, (state, action) => {
-        state.posts.unshift(action.payload)
-        state.totalCount += 1
-      })
+      // // create
+      // .addCase(createPost.fulfilled, (state, action) => {
+      //   state.posts.unshift(action.payload)
+      //   state.totalCount += 1
+      // })
       // update
+      .addCase(updatePost.pending, (state) => {
+        state.updatingPost = true
+      })
       .addCase(updatePost.fulfilled, (state, action) => {
         const index = state.posts.findIndex((p) => p.id === action.payload.id)
         if (index !== -1) state.posts[index] = action.payload
         if (state.currentPost?.id === action.payload.id) state.currentPost = action.payload
       })
+      .addCase(updatePost.rejected, (state, action) => {
+        state.updatingPost = false
+        state.error = action.error.message ?? 'Failed to update post'
+      })
       // delete
+      .addCase(deletePost.pending, (state) => {
+        state.deletingPost = true
+      })
       .addCase(deletePost.fulfilled, (state, action) => {
+        state.deletingPost = false
         state.posts = state.posts.filter((p) => p.id !== action.payload)
         state.totalCount -= 1
         if (state.currentPost?.id === action.payload) state.currentPost = null
       })
-
+      .addCase(deletePost.rejected, (state, action) => {
+        state.deletingPost = false
+        state.error = action.error.message ?? 'Failed to delete post'
+      })
       // fetchComments
       .addCase(fetchComments.pending, (state) => {
         state.loadingComments = true  

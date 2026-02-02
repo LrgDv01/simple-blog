@@ -1,25 +1,95 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
 // Props interface
-interface ImageUploadProps {
+export interface ImageUploadProps {
   onUpload: (url: string) => void
   initialUrl?: string | null
   label?: string
   maxSizeMB?: number
+  disabled?: boolean
 }
 
 // ImageUpload component
-function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", maxSizeMB = 50 }: ImageUploadProps) {
+function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", maxSizeMB = 50, disabled = false }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(initialUrl || null)
   const [uploading, setUploading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  
+  // Add these refs for cleanup
+  const progressIntervalRef = useRef<number | null>(null)
+  const isMountedRef = useRef(true)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Cleanup on mount/unmount
+  useEffect(() => {
+    isMountedRef.current = true
+    
+    return () => {
+      isMountedRef.current = false
+      
+      // Clean up interval
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+        progressIntervalRef.current = null
+      }
+      
+      // Abort any ongoing upload
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
+    }
+  }, [])
+
+  // Handle page visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && uploading) {
+        // Page is hidden - cancel upload
+        handleCancelUpload()
+        toast.error('Upload was interrupted because you switched tabs')
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [uploading])
+
+  // Cancel upload function
+  const handleCancelUpload = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
+    }
+    
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+    
+    if (isMountedRef.current) {
+      setUploading(false)
+      setUploadProgress(0)
+    }
+    
+    // Reset file input
+    if (inputRef.current) {
+      inputRef.current.value = ''
+    }
+  }
 
   // Handle the upload process
   const handleUpload = async (file: File) => {
+    // Don't start if component is unmounted
+    if (!isMountedRef.current) return
+    
     try {
       setUploading(true)
       setUploadProgress(0)
@@ -28,75 +98,159 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
       const maxSize = maxSizeMB * 1024 * 1024
       if (file.size > maxSize) {
         toast.error(`File size must be less than ${maxSizeMB}MB`)
+        setUploading(false)
+        return
+      }
+
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file')
+        setUploading(false)
         return
       }
 
       // Generate preview
       const reader = new FileReader()
-      reader.onloadend = () => setPreview(reader.result as string)
+      reader.onloadend = () => {
+        if (isMountedRef.current) {
+          setPreview(reader.result as string)
+        }
+      }
       reader.readAsDataURL(file)
 
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval)
-            return 90
+      // Create new AbortController for this upload
+      abortControllerRef.current = new AbortController()
+      
+      // Simulate upload progress with timeout protection
+      let progress = 0
+      progressIntervalRef.current = window.setInterval(() => {
+        if (!isMountedRef.current || abortControllerRef.current?.signal.aborted) {
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current)
+            progressIntervalRef.current = null
           }
-          return prev + 10
-        })
+          return
+        }
+        
+        if (progress < 90) {
+          progress += 10
+          setUploadProgress(progress)
+        }
       }, 100)
 
-      // Upload to Supabase Storage
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
-      const { error: uploadError } = await supabase.storage
+      // Upload to Supabase Storage with timeout
+      const uploadPromise = supabase.storage
         .from('blog-images')
-        .upload(fileName, file)
+        .upload(`${Date.now()}-${Math.random().toString(36).slice(2)}.${file.name.split('.').pop()}`, file)
 
-      clearInterval(progressInterval) // Clear simulated progress interval
-      setUploadProgress(100) // Set progress to 100% on completion
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Upload timeout. Please try again.')), 30000) // 30 second timeout
+      })
 
-      if (uploadError) throw uploadError
+      // Race between upload and timeout
+      const { error: uploadError } = await Promise.race([uploadPromise, timeoutPromise]) as any
+
+      // Clear progress interval
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+        progressIntervalRef.current = null
+      }
+
+      // Check if upload was aborted
+      if (abortControllerRef.current?.signal.aborted || !isMountedRef.current) {
+        return
+      }
+
+      if (uploadError) {
+        // Check if it's an abort error
+        if (uploadError.message?.includes('abort') || uploadError.message?.includes('cancel')) {
+          return
+        }
+        throw uploadError
+      }
+
+      // Set progress to 100%
+      setUploadProgress(100)
 
       // Get public URL of the uploaded image
       const { data } = supabase.storage
         .from('blog-images')
-        .getPublicUrl(fileName)
+        .getPublicUrl(file.name)
 
       // Notify parent component of the new image URL
-      onUpload(data.publicUrl)
-      toast.success(
-        <div className="flex items-center space-x-2">
-          <span>Image uploaded successfully!</span>
-        </div>
-      )
+      if (isMountedRef.current) {
+        onUpload(data.publicUrl)
+        toast.success(
+          <div className="flex items-center space-x-2">
+            <span>Image uploaded successfully!</span>
+          </div>
+        )
+      }
       
       // Reset progress after a short delay
-      setTimeout(() => setUploadProgress(0), 1000)
+      setTimeout(() => {
+        if (isMountedRef.current) {
+          setUploadProgress(0)
+        }
+      }, 1000)
       
     } catch (err: any) {
-      toast.error(
-        <div className="flex items-center space-x-2">
-          <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.732 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-          <span>{err.message || 'Upload failed. Please try again.'}</span>
-        </div>
-      )
-    } finally {
+      // Only handle errors if component is still mounted
+      if (!isMountedRef.current) return
+      
+      // Clear interval on error
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+        progressIntervalRef.current = null
+      }
+      
       setUploading(false)
+      setUploadProgress(0)
+      
+      // Check for timeout error
+      if (err.message === 'Upload timeout. Please try again.') {
+        toast.error(
+          <div className="flex items-center space-x-2">
+            <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Upload timed out. Please try again.</span>
+          </div>
+        )
+      } else if (!err.message?.includes('abort') && !err.message?.includes('cancel')) {
+        toast.error(
+          <div className="flex items-center space-x-2">
+            <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.732 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <span>{err.message || 'Upload failed. Please try again.'}</span>
+          </div>
+        )
+      }
+    } finally {
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setUploading(false)
+      }
+      
+      // Clean up abort controller
+      abortControllerRef.current = null
     }
   }
 
   // Handle file input change
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) await handleUpload(file)
+    if (file && !disabled) {
+      await handleUpload(file)
+    }
   }
 
   // Handle drag events
   const handleDrag = (e: React.DragEvent) => {
+    if (disabled) return
+    
     e.preventDefault()
     e.stopPropagation()
     if (e.type === "dragenter" || e.type === "dragover") {
@@ -108,6 +262,8 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
 
   // Handle drop event
   const handleDrop = async (e: React.DragEvent) => {
+    if (disabled) return
+    
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
@@ -119,11 +275,15 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
 
   // Trigger file input click
   const handleButtonClick = () => {
-    inputRef.current?.click()
+    if (!disabled && !uploading) {
+      inputRef.current?.click()
+    }
   }
 
   // Remove image
   const handleRemoveImage = () => {
+    if (disabled) return
+    
     setPreview(null)
     onUpload('')
     toast.success('Image removed')
@@ -135,26 +295,30 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         {label}
         <span className="ml-1 text-xs text-gray-500">(Max {maxSizeMB}MB)</span>
+        {disabled && <span className="ml-2 text-xs text-red-500">(Disabled while publishing)</span>}
       </label>
 
       {/* Upload Area */}
       <div
         className={`relative border-2 border-dashed rounded-xl p-6 transition-all duration-200 ${
-          dragActive 
-            ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' 
-            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+          disabled 
+            ? 'border-gray-300 bg-gray-100 cursor-not-allowed'
+            : dragActive 
+              ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' 
+              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
         }`}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
+        onDragEnter={!disabled ? handleDrag : undefined}
+        onDragLeave={!disabled ? handleDrag : undefined}
+        onDragOver={!disabled ? handleDrag : undefined}
+        onDrop={!disabled ? handleDrop : undefined}
+        onClick={!disabled ? handleButtonClick : undefined}
       >
         <input
           ref={inputRef}
           type="file"
           accept="image/*"
           onChange={handleFileChange}
-          disabled={uploading}
+          disabled={uploading || disabled}
           className="hidden"
         />
 
@@ -175,7 +339,7 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
                 ></div>
               </div>
             ) : (
-              <svg className="h-8 w-8 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`h-8 w-8 ${disabled ? 'text-gray-400' : 'text-indigo-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
             )}
@@ -183,8 +347,8 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
 
           {/* Text Content */}
           <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {uploading ? 'Uploading...' : 'Drag & drop or click to upload'}
+            <p className={`text-sm font-medium ${disabled ? 'text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}>
+              {uploading ? 'Uploading...' : (disabled ? 'Upload disabled' : 'Drag & drop or click to upload')}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               PNG, JPG up to {maxSizeMB}MB
@@ -192,14 +356,24 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
           </div>
 
           {/* Upload Button */}
-          {!uploading && (
+          {!uploading && !disabled && (
             <button
               type="button"
               onClick={handleButtonClick}
-              disabled={uploading}
-              className="mt-4 px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-4 px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 rounded-lg shadow-sm hover:shadow transition-all duration-200"
             >
               Choose Image
+            </button>
+          )}
+
+          {/* Cancel Upload Button */}
+          {uploading && !disabled && (
+            <button
+              type="button"
+              onClick={handleCancelUpload}
+              className="mt-4 px-5 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg shadow-sm hover:shadow transition-all duration-200"
+            >
+              Cancel Upload
             </button>
           )}
 
@@ -227,16 +401,18 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Preview
             </p>
-            <button
-              type="button"
-              onClick={handleRemoveImage}
-              className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center space-x-1"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              <span>Remove</span>
-            </button>
+            {!disabled && (
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center space-x-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <span>Remove</span>
+              </button>
+            )}
           </div>
           
           <div className="relative group overflow-hidden rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">

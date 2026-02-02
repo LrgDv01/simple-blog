@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { setUser } from './features/auth/authSlice'
 import { supabase } from './lib/supabaseClient'
 import toast from 'react-hot-toast'
-
 import Header from './components/Header'
 import Register from './pages/Register'
 import Login from './pages/Login'
@@ -14,40 +13,34 @@ import PostDetail from './pages/PostDetail'
 import EditBlog from './pages/EditBlog'
 import DeactivateAccount from './pages/DeactivateAccount'
 import ProtectedRoute from './components/ProtectedRoute'
-
 import './App.css'
 
 // Main App component
 function App() {
   const dispatch = useAppDispatch();
   const [appLoading, setAppLoading] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState('Initializing SimpleBlog...');
 
-  useEffect(() => {
-    console.log('=== APP INITIALIZATION ===');
-    console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL ? '✓ Set' : '❌ MISSING');
-    console.log('Supabase Key:', import.meta.env.VITE_SUPABASE_ANON_KEY ? '✓ Set' : '❌ MISSING');
-    
-    let isInitialized = false;
-    let subscription: any = null;
+  useEffect(() => {    
+    let isInitialized = false; // To track if initial auth state is set
+    let subscription: any = null; // To hold the auth state change subscription
 
-    // Set up the auth state change listener BEFORE checking initial session
-    // Ensures to catch any changes during the session recovery process
+    // Setup Supabase auth state change listener
     try {
       const { data } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          console.log('=== AUTH STATE CHANGE ===');
-          console.log('Event:', event);
-          console.log('Session user:', session?.user?.email);
+        async (event, session) => {       
           
           // Only update state AFTER initial load is complete
           if (isInitialized) {
             dispatch(setUser(session?.user ?? null));
             
+            // Handle sign in event
             if (event === 'SIGNED_IN' && session?.user) {
-              console.log('✅ User signed in:', session.user.email);
+              console.log('User signed in:', session.user.email);
               await checkAndReactivateUser(session.user.id);
             }
             
+            // Handle sign out event
             if (event === 'SIGNED_OUT') {
               console.log('User signed out');
             }
@@ -56,105 +49,110 @@ function App() {
       );
       subscription = data?.subscription;
     } catch (error) {
-      console.error('❌ Failed to setup auth listener:', error);
+      console.error('Failed to setup auth listener:', error);
     }
 
-    // Initial auth state check
+    // Initialize auth state on app load
     const initializeAuth = async () => {
       try {
+        setLoadingMessage('Checking authentication...');
         console.log('Attempting to restore session from storage...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('❌ Error getting session:', error);
+          console.error('Error getting session:', error);
         } else if (session?.user) {
-          console.log('✅ Restoring user from session:', session.user.email);
+          setLoadingMessage('Restoring your session...');
+          console.log('Restoring user from session:', session.user.email);
           dispatch(setUser(session.user));
           // Auto-reactivate user content on login
           await checkAndReactivateUser(session.user.id);
         } else {
-          console.log('ℹ️ No user session found');
+          console.log('No user session found');
           dispatch(setUser(null));
         }
       } catch (error) {
-        console.error('❌ Auth initialization error:', error);
+        console.error('Auth initialization error:', error);
         dispatch(setUser(null));
       } finally {
         isInitialized = true;
-        setAppLoading(false);
+        setLoadingMessage('Finalizing setup...');
+        setTimeout(() => setAppLoading(false), 300);
       }
     };
     
     initializeAuth();
 
-    // Theme effect
-    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    // Set theme based on user preference
+    const setTheme = () => {
+      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    
+    setTheme();
+    // Listen for theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', setTheme);
 
     return () => {
       console.log('Cleaning up auth listener');
-      subscription?.unsubscribe();
+      subscription?.unsubscribe(); // Unsubscribe on unmount
+      window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', setTheme);
     };
   }, [dispatch]);
 
-  // Helper to check and reactivate user content
+  // Function to check and reactivate user content
   const checkAndReactivateUser = async (userId: string) => {
     try {
       console.log('🔄 Checking for user content to reactivate for user:', userId);
       
-      // Check for posts and comments with original_user_id = userId and user_id IS NULL
+      // Check posts with original_user_id and null user_id
       const { data: postsToReactivate, error: postsCheckError } = await supabase
         .from('posts')
-        .select('*')  // Select all to see full data
+        .select('*')
         .eq('original_user_id', userId)
         .is('user_id', null);
 
       // Handle errors
       if (postsCheckError) {
-        console.error('❌ Error checking posts:', postsCheckError);
+        console.error('Error checking posts:', postsCheckError);
         throw postsCheckError;
       }
       
-      console.log('📋 Posts with original_user_id:', postsToReactivate);
+      console.log('Posts with original_user_id:', postsToReactivate);
 
-      // Check comments similarly
+      // Check comments with original_user_id and null user_id
       const { data: commentsToReactivate, error: commentsCheckError } = await supabase
         .from('comments')
-        .select('*')  // Select all to see full data
+        .select('*')
         .eq('original_user_id', userId)
         .is('user_id', null);
 
       if (commentsCheckError) {
-        console.error('❌ Error checking comments:', commentsCheckError);
+        console.error('Error checking comments:', commentsCheckError);
         throw commentsCheckError;
       }
 
-      console.log('📋 Comments with original_user_id:', commentsToReactivate);
+      console.log('Comments with original_user_id:', commentsToReactivate);
 
-      const postCount = postsToReactivate?.length || 0;
+      const postCount = postsToReactivate?.length || 0; 
       const commentCount = commentsToReactivate?.length || 0;
       
-      console.log(`📊 Found ${postCount} posts and ${commentCount} comments to reactivate`);
+      console.log(`Found ${postCount} posts and ${commentCount} comments to reactivate`);
 
       if (postCount === 0 && commentCount === 0) {
-        console.log('ℹ️ No anonymous content found for this user');
+        console.log('No anonymous content found for this user');
         return;
       }
 
       // Reactivate posts - restore user_id from original_user_id
       if (postCount > 0) {
-        console.log('🔄 Attempting to reactivate posts:');
-        console.log('   Setting user_id =', userId);
-        console.log('   Where original_user_id =', userId);
-        console.log('   And user_id is null');
-        
         const { error: updatePostsError, data: updatedPosts } = await supabase
           .from('posts')
           .update({ 
-            user_id: userId,
+            user_id: userId, // Restore user_id
             original_user_id: null  // Clear in same update to be atomic
           })
           .eq('original_user_id', userId)
@@ -162,60 +160,46 @@ function App() {
           .select();
 
         if (updatePostsError) {
-          console.error('❌ Posts reactivation error:', updatePostsError);
-          console.error('   Error message:', updatePostsError.message);
-          console.error('   Error hint:', updatePostsError.hint);
-          console.error('   Error details:', updatePostsError.details);
+          console.error('Posts reactivation error:', updatePostsError);
           throw new Error(`Failed to reactivate posts: ${updatePostsError.message}`);
         }
         
         if (!updatedPosts || updatedPosts.length === 0) {
-          console.warn('⚠️ WARNING: No posts were reactivated!');
-          console.warn('   Posts returned:', updatedPosts?.length || 0);
-          console.warn('   Check if RLS policy allows update');
+          console.warn('WARNING: No posts were reactivated!');
         } else {
-          console.log(`✅ Reactivated ${updatedPosts.length} posts:`, updatedPosts);
+          console.log(`Reactivated ${updatedPosts.length} posts:`, updatedPosts);
         }
       }
 
       // Reactivate comments - restore user_id from original_user_id
       if (commentCount > 0) {
-        console.log('🔄 Attempting to reactivate comments:');
-        console.log('   Setting user_id =', userId);
-        console.log('   Where original_user_id =', userId);
-        console.log('   And user_id is null');
-        
         const { error: updateCommentsError, data: updatedComments } = await supabase
           .from('comments')
           .update({ 
             user_id: userId,
-            original_user_id: null  // Clear in same update to be atomic
+            original_user_id: null
           })
           .eq('original_user_id', userId)
           .is('user_id', null)
           .select();
 
         if (updateCommentsError) {
-          console.error('❌ Comments reactivation error:', updateCommentsError);
-          console.error('   Error message:', updateCommentsError.message);
-          console.error('   Error hint:', updateCommentsError.hint);
-          console.error('   Error details:', updateCommentsError.details);
+          console.error('Comments reactivation error:', updateCommentsError);
           throw new Error(`Failed to reactivate comments: ${updateCommentsError.message}`);
         }
         
         if (!updatedComments || updatedComments.length === 0) {
-          console.warn('⚠️ WARNING: No comments were reactivated!');
-          console.warn('   Comments returned:', updatedComments?.length || 0);
-          console.warn('   Check if RLS policy allows update');
+          console.warn('WARNING: No comments were reactivated!');
         } else {
-          console.log(`✅ Reactivated ${updatedComments.length} comments:`, updatedComments);
+          console.log(`Reactivated ${updatedComments.length} comments:`, updatedComments);
         }
       }
 
+      // Summary log
       const totalReactivated = postCount + commentCount;
-      console.log(`🎉 Successfully reactivated ${totalReactivated} total items for user ${userId}`);
+      console.log(`Successfully reactivated ${totalReactivated} total items for user ${userId}`);
       
-      // Show success toast to user
+      // Show success toast with counts
       toast.success(
         <div>
           <p className="font-bold">✅ Account Reactivated!</p>
@@ -224,29 +208,56 @@ function App() {
         { duration: 5000 }
       );
     } catch (error) {
-      console.error('❌ Reactivation error:', error);
-      // Don't show error toast - this happens silently if no content to reactivate
+      console.error('Reactivation error:', error);
     }
   };
 
   // Show loading screen while initializing
   if (appLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-500">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
-          <p className="mt-4 text-gray-800">Loading...</p>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center">
+          {/* Animated Logo */}
+          <div className="relative mb-8">
+            <div className="h-24 w-24 mx-auto rounded-2xl bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm border border-white/30 shadow-2xl flex items-center justify-center">
+              <span className="text-4xl font-bold text-white">B</span>
+            </div>
+            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-indigo-400/30 to-pink-400/30 animate-pulse"></div>
+          </div>
+
+          {/* Loading Text */}
+          <h1 className="text-3xl font-bold text-white mb-2">SimpleBlog</h1>
+          <p className="text-white/80 mb-8">Your personal writing space</p>
+
+          {/* Loading Animation */}
+          <div className="space-y-4">
+            <div className="h-3 bg-white/20 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-white/40 to-white/20 animate-[shimmer_2s_infinite]"></div>
+            </div>
+            <p className="text-white/70 text-sm animate-pulse">{loadingMessage}</p>
+          </div>
+
+          {/* Loading Dots */}
+          <div className="flex justify-center space-x-2 mt-8">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-2 w-2 rounded-full bg-white/40 animate-bounce"
+                style={{ animationDelay: `${i * 0.1}s` }}
+              />
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
-  // Main app render
+  // Main app render with routing
   return (
     <HashRouter>
-      <div className="min-h-screen bg-gray-500 w-full flex flex-col items-center">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <Header />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-gray-400 ">
+        <main className="flex-1 w-full">
           <Routes>
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
@@ -286,9 +297,42 @@ function App() {
             />
           </Routes>
         </main>
+
+        {/* Footer */}
+        <footer className="mt-16 py-8 border-t border-gray-200 dark:border-gray-700 bg-gradient-to-r from-white to-gray-50 dark:from-gray-900 dark:to-gray-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+              <div className="flex items-center space-x-2">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">B</span>
+                </div>
+                <span className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  SimpleBlog
+                </span>
+              </div>
+              
+              <div className="text-sm text-gray-600 dark:text-gray-400 space-x-6">
+                <a href="/terms" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  Terms
+                </a>
+                <a href="/privacy" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  Privacy
+                </a>
+                <a href="/about" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  About
+                </a>
+              </div>
+              
+              <p className="text-xs text-gray-500 dark:text-gray-500">
+                © {new Date().getFullYear()} SimpleBlog. Share your story with the world.
+              </p>
+            </div>
+          </div>
+        </footer>
       </div>
     </HashRouter>
   )
 }
 
 export default App
+

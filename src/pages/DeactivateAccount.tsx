@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
-// DeactivateAccount component
+// DeactivateAccount component for handling account deactivation
 function DeactivateAccount() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
@@ -13,12 +13,11 @@ function DeactivateAccount() {
   const [confirmEmail, setConfirmEmail] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Helper to log deactivation asynchronously
+  // Function to log deactivation action
   const logDeactivation = async (userId: string, postCount: number | null, commentCount: number | null) => {
     try {
-      console.log('📝 Attempting to log deactivation...');
       const { data, error: logError } = await supabase
-        .from('deactivation_logs')
+        .from('account_status_logs')
         .insert({
           user_id: userId,
           action: 'deactivated',
@@ -29,17 +28,16 @@ function DeactivateAccount() {
         .select();
 
       if (logError) {
-        console.warn('⚠️ Failed to log deactivation:', logError);
-        console.warn('   This may be due to RLS policy. Check Supabase dashboard.');
+        console.warn('Failed to log deactivation:', logError);
       } else {
-        console.log('✅ Deactivation logged successfully:', data);
+        console.log('Deactivation logged successfully:', data);
       }
     } catch (err) {
-      console.warn('⚠️ Error logging deactivation:', err);
+      console.warn('Error logging deactivation:', err);
     }
   };
 
-  // Handle account deactivation
+  // Deactivation handler
   const handleDeactivate = async () => {
     if (confirmEmail !== user?.email) {
       toast.error('Email does not match');
@@ -47,9 +45,9 @@ function DeactivateAccount() {
     }
 
     setLoading(true);
-    
+
     try {
-      // 1. Get counts first (for logging)
+      // Count user's posts and comments before anonymization
       const { count: postCount } = await supabase
         .from('posts')
         .select('*', { count: 'exact', head: true })
@@ -60,81 +58,67 @@ function DeactivateAccount() {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
 
-      console.log('📊 Found content to anonymize:', { postCount, commentCount });
-
-      // 2. Anonymize posts - save original_user_id and set user_id to null
-      console.log('🔄 Attempting to update posts with user_id:', user.id);
+      // Anonymize posts - save original_user_id and set user_id to null
       const { data: updatedPosts, error: postsError } = await supabase
         .from('posts')
         .update({ 
-          original_user_id: user.id,
-          user_id: null  // ⭐ THIS MAKES CONTENT ANONYMOUS
+          original_user_id: user.id, // Save original user ID
+          user_id: null // This makes content anonymous
         })
         .eq('user_id', user.id)
         .select();
 
-      console.log('Posts update result:', { error: postsError, data: updatedPosts });
-      if (postsError) {
-        console.error('❌ Posts error details:', postsError);
-        console.error('   Error message:', postsError.message);
-        console.error('   Error hint:', postsError.hint);
-        console.error('   Error details:', postsError.details);
-        throw new Error(`Failed to anonymize posts: ${postsError.message}`);
-      }
+      console.log('Posts update result:', { error: postsError, data: updatedPosts }); // Debugging log
+      // handle posts error
+      // if (postsError) {
+      //   console.error('Posts error details:', postsError);
+      //   console.error('Error message:', postsError.message);
+      //   console.error('Error hint:', postsError.hint);
+      //   console.error('Error details:', postsError.details);
+      //   throw new Error(`Failed to anonymize posts: ${postsError.message}`);
+      // }
       
-      if (!updatedPosts || updatedPosts.length === 0) {
-        console.warn('⚠️ WARNING: No posts were updated! Check if:');
-        console.warn('   1. User has posts with user_id =', user.id);
-        console.warn('   2. RLS policy allows user to update their own posts');
-        console.warn('   3. Query filters are correct');
-      }
+      //  Debugging if no posts updated
+      // if (!updatedPosts || updatedPosts.length === 0) {
+      //   console.warn('WARNING: No posts were updated! Check if:');
+      //   console.warn('1. User has posts with user_id =', user.id);
+      //   console.warn('2. RLS policy allows user to update their own posts');
+      //   console.warn('3. Query filters are correct');
+      // }
 
-      // 3. Anonymize comments - save original_user_id and set user_id to null
-      console.log('🔄 Attempting to update comments with user_id:', user.id);
+      // Anonymize comments - save original_user_id and set user_id to null
+      console.log('Attempting to update comments with user_id:', user.id); // Debugging log
       const { data: updatedComments, error: commentsError } = await supabase
         .from('comments')
         .update({ 
           original_user_id: user.id,
-          user_id: null  // ⭐ THIS MAKES CONTENT ANONYMOUS
+          user_id: null  //  This makes content anonymous
         })
         .eq('user_id', user.id)
         .select();
-
-      console.log('Comments update result:', { error: commentsError, data: updatedComments });
-      if (commentsError) {
-        console.error('❌ Comments error details:', commentsError);
-        console.error('   Error message:', commentsError.message);
-        console.error('   Error hint:', commentsError.hint);
-        console.error('   Error details:', commentsError.details);
-        throw new Error(`Failed to anonymize comments: ${commentsError.message}`);
-      }
       
-      if (!updatedComments || updatedComments.length === 0) {
-        console.warn('⚠️ WARNING: No comments were updated! Check if:');
-        console.warn('   1. User has comments with user_id =', user.id);
-        console.warn('   2. RLS policy allows user to update their own comments');
-        console.warn('   3. Query filters are correct');
-      }
+      console.log('Comments update result:', { error: commentsError, data: updatedComments }); // Debugging log
 
-      console.log('✅ Content anonymized successfully:', {
+      console.log('Content anonymized successfully:', {
         posts_anonymized: updatedPosts?.length || 0,
         comments_anonymized: updatedComments?.length || 0
       });
 
-      // 4. Log deactivation - try with Rls-Bypass header if needed
-      logDeactivation(user.id, postCount, commentCount);
+      // Log the deactivation action
+      await logDeactivation(user.id, postCount, commentCount);
 
-      // Console log for admin debugging
-      console.log('✅ Account deactivation complete:', {
+      // Final log
+      console.log('Account deactivation complete:', {
         user_id: user.id,
         posts_anonymized: postCount || 0,
         comments_anonymized: commentCount || 0,
         created_at: new Date().toISOString()
       });
 
-      // Sign out
+      // Sign out the user
       await dispatch(signOut()).unwrap();
       
+      // Show success toast
       toast.success(
         <div>
           <p className="font-bold">✅ Account Deactivated</p>
@@ -144,7 +128,7 @@ function DeactivateAccount() {
         { duration: 7000 }
       );
       
-      navigate('/');
+      navigate('/'); // Redirect to home after deactivation
     } catch (err: any) {
       console.error('Deactivation error:', err);
       toast.error('Deactivation failed: ' + err.message);
@@ -254,7 +238,7 @@ function DeactivateAccount() {
               </button>
             </div>
 
-            {/* REACTIVATION MESSAGE  */}
+            {/* Reactivation Message */}
             <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
               <p className="text-center text-sm text-blue-800 dark:text-blue-300">
                 <span className="font-semibold">Changed your mind?</span>

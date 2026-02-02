@@ -7,7 +7,7 @@ export default defineConfig({
   base: '/',
   plugins: [
     react(), // React support
-    visualizer({ // Bundle analysis tool plugin
+    visualizer({ // Bundle visualizer
       filename: 'dist/stats.html',
       open: true,
       gzipSize: true,
@@ -15,11 +15,10 @@ export default defineConfig({
     })
   ], 
 
-  // Add build optimization
   build: {
     rollupOptions: { // Rollup configuration
       output: {
-        manualChunks: { // Code splitting
+        manualChunks: { // Code splitting for better caching
           vendor: ['react', 'react-dom', 'react-router-dom'],
           supabase: ['@supabase/supabase-js'],
           redux: ['@reduxjs/toolkit', 'react-redux'],

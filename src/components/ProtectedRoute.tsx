@@ -13,10 +13,10 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation()
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />
+    return <Navigate to="/login" state={{ from: location }} replace /> // Redirect to login if not authenticated
   }
 
-  return <>{children}</>
+  return <>{children}</> // Render children if authenticated
 }
 
 export default ProtectedRoute

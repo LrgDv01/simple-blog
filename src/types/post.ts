@@ -9,6 +9,7 @@ export interface Post {
     updated_at?: string
     image_url?: string | null
     original_user_id?: string | null  // For account deactivation/reactivation
+    comment_count?: number; // Number of comments on the post
 }
 
 // Comment interface definition

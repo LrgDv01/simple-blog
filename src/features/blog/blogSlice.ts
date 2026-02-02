@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { supabase } from '../../lib/supabaseClient'
 import type { Post, Comment } from '../../types/post'
 
-// Define the state interface
+// State interface definition
 interface BlogsState {
   posts: Post[]
   currentPost: Post | null
@@ -14,7 +14,7 @@ interface BlogsState {
   totalCount: number
 }
 
-// Initial state
+// Initial state definition
 const initialState: BlogsState = {
   posts: [],
   currentPost: null,
@@ -28,7 +28,7 @@ const initialState: BlogsState = {
 
 const PAGE_SIZE = 10 // Number of posts per page
 
-// Async thunk to fetch comments for a specific post
+// Async thunk to fetch comments for a post
 export const fetchComments = createAsyncThunk(
   'blogs/fetchComments',
   async (postId: string) => {
@@ -62,13 +62,14 @@ export const createComment = createAsyncThunk(
   }
 )
 
-// Async thunks for CRUD operations
+// Fetch paginated posts
 export const fetchPosts = createAsyncThunk(
   'blogs/fetchPosts',
   async (page: number = 0) => {
     const from = page * PAGE_SIZE
     const to = from + PAGE_SIZE - 1
 
+    // Fetch posts with total count
     const [{ data: posts, count, error: postsError }] = await Promise.all([
       supabase
         .from('posts')
@@ -79,7 +80,31 @@ export const fetchPosts = createAsyncThunk(
 
     if (postsError) throw postsError
 
-    return { posts: posts as Post[], totalCount: count ?? 0 }
+    // Fetch comment counts for the posts
+    const postIds = posts?.map(post => post.id) || []
+    let commentCounts: Record<string, number> = {}
+    
+    if (postIds.length > 0) {
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('comments')
+        .select('post_id')
+        .in('post_id', postIds)
+      
+      if (!commentsError && commentsData) {
+        // Count comments per post
+        commentsData.forEach(comment => {
+          commentCounts[comment.post_id] = (commentCounts[comment.post_id] || 0) + 1
+        })
+      }
+    }
+
+    // Merge comment counts into posts
+    const postsWithCounts = posts?.map(post => ({
+      ...post,
+      comment_count: commentCounts[post.id] || 0
+    })) || []
+
+    return { posts: postsWithCounts as Post[], totalCount: count ?? 0 } // Return total count
   }
 )
 
@@ -95,7 +120,7 @@ export const fetchPost = createAsyncThunk(
 
     if (error) throw error
 
-    // dispatch to load comments for the post
+    // Also fetch comments for the post
     dispatch(fetchComments(id))
 
     return data as Post
@@ -121,8 +146,9 @@ export const updatePost = createAsyncThunk(
   async ({ id, title, content, author_email, image_url }: { id: string; title: string; content: string; author_email: string; image_url?: string }) => {
     // Prepare update object
     const updates: any = { title, content, author_email }
-    if (image_url !== undefined) updates.image_url = image_url // only include if provided
+    if (image_url !== undefined) updates.image_url = image_url // Only include if provided
     
+    // Perform the update
     const { data, error } = await supabase
       .from('posts')
       .update(updates)
@@ -134,14 +160,14 @@ export const updatePost = createAsyncThunk(
   }
 )
 
-// Delete a post
+// Delete a post by ID
 export const deletePost = createAsyncThunk('blogs/deletePost', async (id: string) => {
   const { error } = await supabase.from('posts').delete().eq('id', id)
   if (error) throw error
   return id
 })
 
-// Create the blog slice
+// Blog slice definition
 const blogSlice = createSlice({
   name: 'blogs',
   initialState,
@@ -150,7 +176,6 @@ const blogSlice = createSlice({
       state.currentPost = null
     },
   },
-  // Reducers for async operations
   extraReducers: (builder) => {
     builder
       // fetchPosts

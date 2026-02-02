@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { supabase } from '../../lib/supabaseClient'
 
+// User interface definition
 export interface User {
   id: string
   email?: string
@@ -26,13 +27,15 @@ const initialState: AuthState = {
   error: null,
 }
 
+
 // Sign up thunk
 export const signUp = createAsyncThunk(
   'auth/signUp',
+  // Payload contains email and password
   async ({ email, password }: { email: string; password: string }): Promise<AuthResponse> => {
     console.log('=== SIGNUP THUNK ===');
-    console.log('Email:', email);
     
+    // Call Supabase signUp method with email redirect option
     const { data, error } = await supabase.auth.signUp({ 
       email, 
       password,
@@ -40,9 +43,7 @@ export const signUp = createAsyncThunk(
         emailRedirectTo: `${window.location.origin}/auth/callback`, // Redirect after email confirmation
       }
     });
-    
-    console.log('SignUp response:', { data, error });
-    
+        
     if (error) {
       console.error('SignUp error:', error);
       throw error;
@@ -61,12 +62,9 @@ export const signIn = createAsyncThunk(
   'auth/signIn',
   async ({ email, password }: { email: string; password: string }): Promise<AuthResponse> => {
     console.log('=== SIGNIN THUNK ===');
-    console.log('Email:', email);
     
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password }); 
-    
-    console.log('SignIn response:', { data, error });
-    
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });  // Call Supabase signIn method
+        
     if (error) {
       console.error('SignIn error:', error);
       throw error;
@@ -102,21 +100,22 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Handle signUp lifecycle
       .addCase(signUp.pending, (state) => { 
         state.loading = true;
         state.error = null;
       })
       .addCase(signUp.fulfilled, (state, action) => {
-        // Set user from the response
+        // Set user from payload
         state.user = action.payload.user ?? null;
         state.loading = false;
         state.error = null;
         
-        // Check if session exists (auto-login when email confirmations are off)
+        // Log based on session presence
         if (action.payload.session) {
-          console.log('✅ Registration successful with auto-login');
+          console.log('Registration successful with auto-login');
         } else {
-          console.log('⚠️ Registration succeeded but no session - check email confirmation');
+          console.log('Registration succeeded but no session - check email confirmation');
         }
       })
       .addCase(signUp.rejected, (state, action) => {
@@ -131,7 +130,7 @@ const authSlice = createSlice({
       .addCase(signIn.fulfilled, (state, action) => {
         state.user = action.payload.user ?? null;
         state.loading = false;
-        console.log('✅ Login successful');
+        console.log('Login successful');
       })
       .addCase(signIn.rejected, (state, action) => {
         state.loading = false;
@@ -141,7 +140,7 @@ const authSlice = createSlice({
       .addCase(signOut.fulfilled, (state) => {
         state.user = null;
         state.loading = false;
-        console.log('✅ Logout successful');
+        console.log('Logout successful');
       })
       .addCase(signOut.rejected, (state, action) => {
         state.error = action.error.message ?? 'Logout failed';

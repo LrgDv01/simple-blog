@@ -175,7 +175,7 @@ function PostDetail() {
                   {currentPost.user_id ? getUserInitial(currentPost.author_email) : 'A'}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  <h3 className="text-start text-lg font-semibold text-gray-900 dark:text-gray-100">
                     {currentPost.user_id === user?.id 
                       ? 'You' 
                       : currentPost.user_id 

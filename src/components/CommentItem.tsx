@@ -26,12 +26,13 @@ interface CommentItemProps {
 export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
-  const { currentPost, comments } = useAppSelector((state) => state.blogs)
+  const { comments } = useAppSelector((state) => state.blogs)
+  // const { currentPost, comments } = useAppSelector((state) => state.blogs)
   const [isEditing, setIsEditing] = useState(false)
   const [isReplying, setIsReplying] = useState(false)
-  const [editImageUrl, setEditImageUrl] = useState<string | undefined>(
-    comment.image_url ? comment.image_url : undefined
-  )
+  // const [editImageUrl, setEditImageUrl] = useState<string | undefined>(
+  //   comment.image_url ? comment.image_url : undefined
+  // )
   const [replyImageUrl, setReplyImageUrl] = useState<string | undefined>()
   const [showReplies, setShowReplies] = useState(true)
 
@@ -39,7 +40,7 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
   const {
     register: editRegister,
     handleSubmit: handleEditSubmit,
-    watch: editWatch,
+    // watch: editWatch,
     reset: resetEdit,
     formState: { errors: editErrors, isSubmitting: isEditSubmitting },
   } = useForm<CommentFormData>({
@@ -128,9 +129,9 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
   }
 
   // Helper function to safely set image URL
-  const safeSetEditImageUrl = (url: string | null | undefined) => {
-    setEditImageUrl(url ? url : undefined)
-  }
+  // const safeSetEditImageUrl = (url: string | null | undefined) => {
+  //   setEditImageUrl(url ? url : undefined)
+  // }
 
   // Find replies for this comment
   const replies = comments.filter(c => c.parent_id === comment.id)

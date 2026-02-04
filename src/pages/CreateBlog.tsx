@@ -2,7 +2,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
-import { createPost, clearCurrentPost } from '../features/blog/blogSlice'
+import { createPost } from '../features/blog/blogSlice'
+// import { createPost, clearCurrentPost } from '../features/blog/blogSlice'
 import { useNavigate } from 'react-router-dom'
 import ImageUpload from '../components/ImageUpload'
 import { useState, useEffect, useRef } from 'react'
@@ -118,7 +119,7 @@ function CreateBlog() {
           author_email: user.email,
         })
       ).unwrap()
-
+      console.log(result)
       // Check if request was aborted
       if (signal.aborted) {
         return

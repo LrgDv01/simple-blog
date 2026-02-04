@@ -354,7 +354,7 @@ const blogSlice = createSlice({
       .addCase(updateComment.rejected, (state, action) => {
         // Revert optimistic update on error
         // Store original content in the action meta if needed
-        console.error('Failed to update comment:', action.error)
+        console.error('Failed to update comment:', state,  action.error)
         // In production, you would revert the optimistic update here
       })
 

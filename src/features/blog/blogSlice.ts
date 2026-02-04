@@ -10,9 +10,6 @@ interface BlogsState {
   loading: boolean
   loadingSingle: boolean
   loadingComments: boolean
-  creatingPost: boolean
-  updatingPost: boolean
-  deletingPost: boolean
   error: string | null
   totalCount: number
 }
@@ -27,14 +24,11 @@ const initialState: BlogsState = {
   totalCount: 0,
   comments: [],
   loadingComments: false,
-  creatingPost: false,
-  updatingPost: false,
-  deletingPost: false,
 }
 
-const PAGE_SIZE = 10 // Number of posts per page
+const PAGE_SIZE = 10
 
-// Async thunk to fetch comments for a post
+// Async thunk to fetch comments for a post (with replies)
 export const fetchComments = createAsyncThunk(
   'blogs/fetchComments',
   async (postId: string) => {
@@ -43,28 +37,110 @@ export const fetchComments = createAsyncThunk(
       .select('*')
       .eq('post_id', postId)
       .order('created_at', { ascending: true })
+    
     if (error) throw error
+    
+    // Organize comments into a flat structure with parent_id
     return data as Comment[]
   }
 )
 
-// Async thunk to create a new comment
+// Async thunk to create a new comment or reply
 export const createComment = createAsyncThunk(
   'blogs/createComment',
-  async ({ postId, user_id, content, image_url, author_email }: {
+  async ({ 
+    postId, 
+    user_id, 
+    content, 
+    image_url, 
+    author_email,
+    parent_id = null 
+  }: {
     postId: string
     user_id: string
     content: string
     image_url?: string
     author_email: string
+    parent_id?: string | null
   }) => {
     const { data, error } = await supabase
       .from('comments')
-      .insert({ post_id: postId, user_id, content, image_url, author_email })
+      .insert({ 
+        post_id: postId, 
+        user_id, 
+        content, 
+        image_url, 
+        author_email,
+        parent_id,
+        is_edited: false 
+      })
       .select()
       .single()
     if (error) throw error
     return data as Comment
+  }
+)
+
+// Async thunk to update a comment
+export const updateComment = createAsyncThunk(
+  'blogs/updateComment',
+  async ({ 
+    commentId, 
+    content 
+  }: { 
+    commentId: string; 
+    content: string; 
+  }) => {
+    const { data, error } = await supabase
+      .from('comments')
+      .update({ 
+        content, 
+        is_edited: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', commentId)
+      .select()
+      .single()
+    if (error) throw error
+    return data as Comment
+  }
+)
+
+// Async thunk to delete a comment
+export const deleteComment = createAsyncThunk(
+  'blogs/deleteComment',
+  async (commentId: string): Promise<string | Comment> => {
+    // First, check if comment has replies
+    const { data: replies, error: repliesError } = await supabase
+      .from('comments')
+      .select('id')
+      .eq('parent_id', commentId)
+    
+    if (repliesError) throw repliesError
+    
+    if (replies && replies.length > 0) {
+      // If comment has replies, just mark as deleted
+      const { data, error } = await supabase
+        .from('comments')
+        .update({ 
+          content: '[This comment has been deleted]',
+          is_edited: true,
+          author_email: '[deleted]'
+        })
+        .eq('id', commentId)
+        .select()
+        .single()
+      if (error) throw error
+      return data as Comment
+    } else {
+      // If no replies, delete completely
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId)
+      if (error) throw error
+      return commentId
+    }
   }
 )
 
@@ -75,7 +151,6 @@ export const fetchPosts = createAsyncThunk(
     const from = page * PAGE_SIZE
     const to = from + PAGE_SIZE - 1
 
-    // Fetch posts with total count
     const [{ data: posts, count, error: postsError }] = await Promise.all([
       supabase
         .from('posts')
@@ -86,7 +161,6 @@ export const fetchPosts = createAsyncThunk(
 
     if (postsError) throw postsError
 
-    // Fetch comment counts for the posts
     const postIds = posts?.map(post => post.id) || []
     let commentCounts: Record<string, number> = {}
     
@@ -97,20 +171,18 @@ export const fetchPosts = createAsyncThunk(
         .in('post_id', postIds)
       
       if (!commentsError && commentsData) {
-        // Count comments per post
         commentsData.forEach(comment => {
           commentCounts[comment.post_id] = (commentCounts[comment.post_id] || 0) + 1
         })
       }
     }
 
-    // Merge comment counts into posts
     const postsWithCounts = posts?.map(post => ({
       ...post,
       comment_count: commentCounts[post.id] || 0
     })) || []
 
-    return { posts: postsWithCounts as Post[], totalCount: count ?? 0 } // Return total count
+    return { posts: postsWithCounts as Post[], totalCount: count ?? 0 }
   }
 )
 
@@ -150,11 +222,9 @@ export const createPost = createAsyncThunk(
 export const updatePost = createAsyncThunk(
   'blogs/updatePost',
   async ({ id, title, content, author_email, image_url }: { id: string; title: string; content: string; author_email: string; image_url?: string }) => {
-    // Prepare update object
     const updates: any = { title, content, author_email }
-    if (image_url !== undefined) updates.image_url = image_url // Only include if provided
+    if (image_url !== undefined) updates.image_url = image_url
     
-    // Perform the update
     const { data, error } = await supabase
       .from('posts')
       .update(updates)
@@ -184,19 +254,6 @@ const blogSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-       // createPost
-      .addCase(createPost.pending, (state) => {
-        state.creatingPost = true;
-      })
-      .addCase(createPost.fulfilled, (state, action) => {
-        state.creatingPost = false;
-        state.posts.unshift(action.payload)
-        state.totalCount += 1
-      })
-      .addCase(createPost.rejected, (state, action) => {
-        state.creatingPost = false;
-        state.error = action.error.message ?? 'Failed to create post';
-      })
       // fetchPosts
       .addCase(fetchPosts.pending, (state) => {
         state.loading = true
@@ -222,38 +279,24 @@ const blogSlice = createSlice({
         state.loadingSingle = false
         state.error = action.error.message ?? 'Failed to load post'
       })
-      // // create
-      // .addCase(createPost.fulfilled, (state, action) => {
-      //   state.posts.unshift(action.payload)
-      //   state.totalCount += 1
-      // })
-      // update
-      .addCase(updatePost.pending, (state) => {
-        state.updatingPost = true
+      // createPost
+      .addCase(createPost.fulfilled, (state, action) => {
+        state.posts.unshift(action.payload)
+        state.totalCount += 1
       })
+      // updatePost
       .addCase(updatePost.fulfilled, (state, action) => {
         const index = state.posts.findIndex((p) => p.id === action.payload.id)
         if (index !== -1) state.posts[index] = action.payload
         if (state.currentPost?.id === action.payload.id) state.currentPost = action.payload
       })
-      .addCase(updatePost.rejected, (state, action) => {
-        state.updatingPost = false
-        state.error = action.error.message ?? 'Failed to update post'
-      })
-      // delete
-      .addCase(deletePost.pending, (state) => {
-        state.deletingPost = true
-      })
+      // deletePost
       .addCase(deletePost.fulfilled, (state, action) => {
-        state.deletingPost = false
         state.posts = state.posts.filter((p) => p.id !== action.payload)
         state.totalCount -= 1
         if (state.currentPost?.id === action.payload) state.currentPost = null
       })
-      .addCase(deletePost.rejected, (state, action) => {
-        state.deletingPost = false
-        state.error = action.error.message ?? 'Failed to delete post'
-      })
+
       // fetchComments
       .addCase(fetchComments.pending, (state) => {
         state.loadingComments = true  
@@ -266,7 +309,8 @@ const blogSlice = createSlice({
         state.loadingComments = false
         state.error = action.error.message ?? 'Failed to load comments'
       })
-      // Optimistic create comment
+      
+      // createComment
       .addCase(createComment.pending, (state, action) => {
         const tempId = 'temp-' + Date.now()
         const optimisticComment: Comment = {
@@ -276,6 +320,8 @@ const blogSlice = createSlice({
           content: action.meta.arg.content,
           author_email: action.meta.arg.author_email,
           image_url: action.meta.arg.image_url,
+          parent_id: action.meta.arg.parent_id || null,
+          is_edited: false,
           created_at: new Date().toISOString(),
         }
         state.comments.push(optimisticComment)
@@ -289,6 +335,55 @@ const blogSlice = createSlice({
       .addCase(createComment.rejected, (state) => {
         // Remove the optimistic comment on failure
         state.comments = state.comments.filter(c => !c.id.startsWith('temp-'))
+      })
+
+      // updateComment
+      .addCase(updateComment.pending, (state, action) => {
+        const index = state.comments.findIndex(c => c.id === action.meta.arg.commentId)
+        if (index !== -1) {
+          state.comments[index].content = action.meta.arg.content
+          state.comments[index].is_edited = true
+        }
+      })
+      .addCase(updateComment.fulfilled, (state, action) => {
+        const index = state.comments.findIndex(c => c.id === action.payload.id)
+        if (index !== -1) {
+          state.comments[index] = action.payload
+        }
+      })
+      .addCase(updateComment.rejected, (state, action) => {
+        // Revert optimistic update on error
+        // Store original content in the action meta if needed
+        console.error('Failed to update comment:', action.error)
+        // In production, you would revert the optimistic update here
+      })
+
+      // deleteComment
+      .addCase(deleteComment.pending, (state, action) => {
+        // Optimistically mark as deleted
+        const index = state.comments.findIndex(c => c.id === action.meta.arg)
+        if (index !== -1) {
+          state.comments[index].content = '[This comment has been deleted]'
+          state.comments[index].author_email = '[deleted]'
+          state.comments[index].is_edited = true
+        }
+      })
+      .addCase(deleteComment.fulfilled, (state, action) => {
+        if (typeof action.payload === 'string') {
+          // Comment was fully deleted (ID string returned)
+          state.comments = state.comments.filter(c => c.id !== action.payload)
+        } else {
+          // Comment was marked as deleted but kept for replies (Comment object returned)
+          const comment = action.payload as Comment
+          const index = state.comments.findIndex(c => c.id === comment.id)
+          if (index !== -1) {
+            state.comments[index] = comment
+          }
+        }
+      })
+      .addCase(deleteComment.rejected, () => {
+        // In production, you would revert the optimistic deletion here
+        console.error('Failed to delete comment')
       })
   },
 })

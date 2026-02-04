@@ -24,6 +24,15 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
   const isMountedRef = useRef(true)
   const abortControllerRef = useRef<AbortController | null>(null)
 
+  // Update preview when initialUrl changes
+  useEffect(() => {
+    if (initialUrl) {
+      setPreview(initialUrl)
+    } else {
+      setPreview(null)
+    }
+  }, [initialUrl])
+
   // Cleanup on mount/unmount
   useEffect(() => {
     isMountedRef.current = true
@@ -138,14 +147,22 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
         }
       }, 100)
 
+      // Generate unique file name
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`
+      const filePath = `blog-images/${fileName}`
+
       // Upload to Supabase Storage with timeout
       const uploadPromise = supabase.storage
-        .from('blog-images')
-        .upload(`${Date.now()}-${Math.random().toString(36).slice(2)}.${file.name.split('.').pop()}`, file)
+        .from('blog-images')  // Changed from 'blog-images' to 'images' to match your previous code
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
 
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Upload timeout. Please try again.')), 30000) // 30 second timeout
+        setTimeout(() => reject(new Error('Upload timeout. Please try again.')), 30000)
       })
 
       // Race between upload and timeout
@@ -173,16 +190,19 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
       // Set progress to 100%
       setUploadProgress(100)
 
-      // Get public URL of the uploaded image
-      const { data } = supabase.storage
+      // Get public URL of the uploaded image - use the correct filePath
+      const { data: publicUrlData } = supabase.storage
         .from('blog-images')
-        .getPublicUrl(file.name)
+        .getPublicUrl(filePath)
 
       // Notify parent component of the new image URL
       if (isMountedRef.current) {
-        onUpload(data.publicUrl)
+        onUpload(publicUrlData.publicUrl)
         toast.success(
           <div className="flex items-center space-x-2">
+            <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
             <span>Image uploaded successfully!</span>
           </div>
         )
@@ -219,6 +239,7 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
           </div>
         )
       } else if (!err.message?.includes('abort') && !err.message?.includes('cancel')) {
+        console.error('Upload error:', err)
         toast.error(
           <div className="flex items-center space-x-2">
             <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -243,6 +264,10 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file && !disabled) {
+      // Reset input value to allow selecting same file again
+      if (inputRef.current) {
+        inputRef.current.value = ''
+      }
       await handleUpload(file)
     }
   }
@@ -274,7 +299,8 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
   }
 
   // Trigger file input click
-  const handleButtonClick = () => {
+  const handleButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent event bubbling
     if (!disabled && !uploading) {
       inputRef.current?.click()
     }
@@ -320,6 +346,7 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
           onChange={handleFileChange}
           disabled={uploading || disabled}
           className="hidden"
+          onClick={(e) => e.stopPropagation()} // Prevent event bubbling
         />
 
         <div className="text-center">

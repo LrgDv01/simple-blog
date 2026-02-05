@@ -192,7 +192,7 @@ function EditBlog() {
                       Optional • 1200×630px recommended
                     </span>
                   </label>
-                  {imageUrl && (
+                  {/* {imageUrl && (
                     <button
                       type="button"
                       onClick={() => setImageUrl(undefined)}
@@ -203,7 +203,7 @@ function EditBlog() {
                       </svg>
                       <span>Remove Image</span>
                     </button>
-                  )}
+                  )} */}
                 </div>
                 <ImageUpload onUpload={setImageUrl} initialUrl={currentPost.image_url || undefined} />
                 

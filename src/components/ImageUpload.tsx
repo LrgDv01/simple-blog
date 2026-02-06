@@ -154,7 +154,7 @@ function ImageUpload({ onUpload, initialUrl, label = "Upload Image (optional)", 
 
       // Upload to Supabase Storage with timeout
       const uploadPromise = supabase.storage
-        .from('blog-images')  // Changed from 'blog-images' to 'images' to match your previous code
+        .from('blog-images')  
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false

@@ -170,7 +170,7 @@ function EditBlog() {
                   {...register('title')}
                   defaultValue={currentPost.title}
                   maxLength={100}
-                  className="w-full px-6 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 dark:bg-gray-700/50 text-lg font-medium placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-200"
+                  className="w-full px-6 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 dark:bg-gray-700/50 text-lg text-white font-medium placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-200"
                   placeholder="Craft a compelling title for your story..."
                 />
                 {errors.title && (
@@ -269,7 +269,7 @@ function EditBlog() {
                     <button
                       type="button"
                       onClick={() => navigate(`/post/${id}`)}
-                      className="px-8 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 hover:shadow-lg transition-all duration-200"
+                      className="px-8 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-400 font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 hover:shadow-lg transition-all duration-200"
                     >
                       Discard Changes
                     </button>

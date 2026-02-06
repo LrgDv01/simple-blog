@@ -189,7 +189,7 @@ function CreateBlog() {
                 className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
                   !isPreview
                     ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-400'
                 }`}
                 disabled={isSubmitting}
               >
@@ -206,7 +206,7 @@ function CreateBlog() {
                 className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
                   isPreview
                     ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-400'
                 }`}
                 disabled={isSubmitting}
               >
@@ -235,7 +235,7 @@ function CreateBlog() {
                 </div>
                 <input
                   {...register('title')}
-                  className={`w-full px-5 py-4 text-lg border rounded-xl focus:ring-2 focus:ring-offset-2 transition-all ${
+                  className={`text-white w-full px-5 py-4 text-lg border rounded-xl focus:ring-2 focus:ring-offset-2 transition-all ${
                     errors.title
                       ? 'border-red-300 focus:ring-red-500 focus:border-red-500 dark:border-red-700'
                       : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700'
@@ -307,7 +307,7 @@ function CreateBlog() {
                         register('content').onChange(e)
                         handleContentChange(e)
                       }}
-                      className={`w-full px-5 py-4 border rounded-xl focus:ring-2 focus:ring-offset-2 transition-all font-mono text-sm ${
+                      className={`text-white w-full px-5 py-4 border rounded-xl focus:ring-2 focus:ring-offset-2 transition-all font-mono text-sm ${
                         errors.content
                           ? 'border-red-300 focus:ring-red-500 focus:border-red-500 dark:border-red-700'
                           : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700'
@@ -352,7 +352,7 @@ function CreateBlog() {
                 <button
                   type="button"
                   onClick={() => navigate('/dashboard')}
-                  className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+                  className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-400 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
                   disabled={isSubmitting}
                 >
                   Cancel

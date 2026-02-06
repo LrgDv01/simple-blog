@@ -84,7 +84,7 @@ function Header() {
 
                 <button
                   onClick={handleLogout}
-                  className="group relative px-4 py-2.5 rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors duration-200"
+                  className="group relative px-4 py-2.5 rounded-lg font-medium text-gray-700 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors duration-200"
                 >
                   <div className="flex items-center space-x-2">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -86,18 +86,31 @@ export const updateComment = createAsyncThunk(
   'blogs/updateComment',
   async ({ 
     commentId, 
-    content 
+    content,
+    image_url
   }: { 
     commentId: string; 
-    content: string; 
+    content: string;
+    image_url?: string | null;
   }) => {
+    const updatePayload: {
+      content: string
+      is_edited: boolean
+      updated_at: string
+      image_url?: string | null
+    } = {
+      content,
+      is_edited: true,
+      updated_at: new Date().toISOString(),
+    }
+
+    if (image_url !== undefined) {
+      updatePayload.image_url = image_url
+    }
+
     const { data, error } = await supabase
       .from('comments')
-      .update({ 
-        content, 
-        is_edited: true,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', commentId)
       .select()
       .single()

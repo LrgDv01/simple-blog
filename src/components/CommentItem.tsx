@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { updateComment, deleteComment, createComment } from '../features/blog/blogSlice'
 import type { Comment as CommentType } from '../types/post'
@@ -12,7 +12,7 @@ import remarkGfm from 'remark-gfm'
 
 // Validation schema for comment edit form
 const commentSchema = z.object({
-  content: z.string().min(1, 'Comment cannot be empty'),
+  content: z.string().max(500, 'Comment must be 500 characters or less'),
 })
 
 type CommentFormData = z.infer<typeof commentSchema>
@@ -27,12 +27,11 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
   const { comments } = useAppSelector((state) => state.blogs)
-  // const { currentPost, comments } = useAppSelector((state) => state.blogs)
   const [isEditing, setIsEditing] = useState(false)
   const [isReplying, setIsReplying] = useState(false)
-  // const [editImageUrl, setEditImageUrl] = useState<string | undefined>(
-  //   comment.image_url ? comment.image_url : undefined
-  // )
+  const [editImageUrl, setEditImageUrl] = useState<string | undefined | null>(
+    comment.image_url ? comment.image_url : undefined
+  )
   const [replyImageUrl, setReplyImageUrl] = useState<string | undefined>()
   const [showReplies, setShowReplies] = useState(true)
 
@@ -40,8 +39,10 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
   const {
     register: editRegister,
     handleSubmit: handleEditSubmit,
-    // watch: editWatch,
+    watch: editWatch,
     reset: resetEdit,
+    setError: setEditError,
+    clearErrors: clearEditErrors,
     formState: { errors: editErrors, isSubmitting: isEditSubmitting },
   } = useForm<CommentFormData>({
     resolver: zodResolver(commentSchema),
@@ -56,36 +57,70 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
     handleSubmit: handleReplySubmit,
     watch: replyWatch,
     reset: resetReply,
+    setError: setReplyError,
+    clearErrors: clearReplyErrors,
     formState: { errors: replyErrors, isSubmitting: isReplySubmitting },
   } = useForm<CommentFormData>({
     resolver: zodResolver(commentSchema),
   })
 
-  // Remove unused editContent variable
+  const editContent = editWatch('content', '')
   const replyContent = replyWatch('content', '')
+  const hasEditContent = editContent.trim().length > 0
+  const hasReplyContent = replyContent.trim().length > 0
+  const hasEditImage = Boolean(editImageUrl)
+  const hasReplyImage = Boolean(replyImageUrl)
+
+  useEffect(() => {
+    if (hasEditContent || hasEditImage) {
+      clearEditErrors('content')
+    }
+  }, [hasEditContent, hasEditImage, clearEditErrors])
+
+  useEffect(() => {
+    if (hasReplyContent || hasReplyImage) {
+      clearReplyErrors('content')
+    }
+  }, [hasReplyContent, hasReplyImage, clearReplyErrors])
 
   const isAuthor = user?.email === comment.author_email && comment.author_email !== '[deleted]'
   const canReply = user && comment.author_email !== '[deleted]'
 
   const handleUpdateComment = async (data: CommentFormData) => {
-    if (!data.content.trim() || data.content === comment.content) {
+    const trimmedContent = data.content.trim()
+    const originalImageUrl = comment.image_url ?? undefined
+    const imageChanged = editImageUrl !== originalImageUrl
+    const contentChanged = trimmedContent !== comment.content.trim()
+
+    if (!trimmedContent && !editImageUrl) {
+      setEditError('content', {
+        type: 'manual',
+        message: 'Add text or an image to save the comment.',
+      })
+      return
+    }
+
+    if (!contentChanged && !imageChanged) {
       setIsEditing(false)
       return
     }
 
     try {
-        await dispatch(updateComment({
+      // Create update object
+      const updateData: any = {
         commentId: comment.id,
-        content: data.content
-        })).unwrap()
-        setIsEditing(false)
-        
-        // Note: Not updating the image URL here because
-        // backend doesn't support updating comment images yet
-        // To support image updates, need to modify
-        // the updateComment thunk to accept image_url
+        content: trimmedContent
+      }
+      
+      // Only include image_url if it has changed
+      if (imageChanged) {
+        updateData.image_url = editImageUrl || null
+      }
+      
+      await dispatch(updateComment(updateData)).unwrap()
+      setIsEditing(false)
     } catch (error) {
-        console.error('Failed to update comment:', error)
+      console.error('Failed to update comment:', error)
     }
   }
 
@@ -100,16 +135,23 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
   }
 
   const handleReply = async (data: CommentFormData) => {
-    if (!data.content.trim() || !user?.email || !user?.id) {
-      setIsReplying(false)
+    const trimmedContent = data.content.trim()
+
+    if (!trimmedContent && !replyImageUrl) {
+      setReplyError('content', {
+        type: 'manual',
+        message: 'Add text or an image to post a reply.',
+      })
       return
     }
+
+    if (!user?.email || !user?.id) return
     
     try {
       await dispatch(createComment({
         postId,
         user_id: user.id,
-        content: data.content,
+        content: trimmedContent,
         author_email: user.email,
         parent_id: comment.id,
         image_url: replyImageUrl
@@ -128,10 +170,22 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
     return email?.charAt(0).toUpperCase() || 'U'
   }
 
-  // Helper function to safely set image URL
-  // const safeSetEditImageUrl = (url: string | null | undefined) => {
-  //   setEditImageUrl(url ? url : undefined)
-  // }
+  const handleEditImageUpload = (url: string) => {
+    if (!url) {
+      setEditImageUrl(null)
+      return
+    }
+    setEditImageUrl(url)
+  }
+
+  const handleReplyImageUpload = (url: string) => {
+    setReplyImageUrl(url || undefined)
+  }
+
+  // Remove image from comment
+  const handleRemoveImage = () => {
+    setEditImageUrl(null)
+  }
 
   // Find replies for this comment
   const replies = comments.filter(c => c.parent_id === comment.id)
@@ -195,18 +249,68 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
                     </div>
                     )}
 
-                    {/* Comment image updates are not supported at this time */}
-                    {/* {comment.image_url && (
+                    {/* Image upload section for editing */}
                     <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                        <div className="rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 max-w-xs">
-                        <img 
-                            src={comment.image_url} 
-                            alt="Current comment attachment"
-                            className="w-full h-32 object-cover"
+                      {/* <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Update comment image (optional)
+                      </label> */}
+                      
+                      {/* Show current image if exists */}
+                      {/* {comment.image_url && (
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Current image
+                            </p>
+                            <button
+                              type="button"
+                              onClick={handleRemoveImage}
+                              className="text-xs text-red-600 hover:text-red-700 font-medium flex items-center space-x-1"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              <span>Remove image</span>
+                            </button>
+                          </div>
+                          <div className="rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 max-w-xs">
+                            <img 
+                              src={comment.image_url} 
+                              alt="Current comment attachment"
+                              className="w-full h-32 object-cover"
+                            />
+                          </div>
+                          {editImageUrl === null && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                              Image will be removed when you save.
+                            </p>
+                          )}
+                        </div>
+                      )} */}
+                      
+                      {/* Replace or add a new image */}
+                      <div className="space-y-3">
+                        <ImageUpload 
+                          onUpload={handleEditImageUpload} 
+                          initialUrl={editImageUrl ?? undefined}
+                          label={comment.image_url ? "Replace image" : "Add an image"}
                         />
-                        </div>              
+                        {editImageUrl && editImageUrl !== comment.image_url && (
+                          <div className="mt-3">
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              New image preview
+                            </p>
+                            <div className="rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 max-w-xs">
+                              <img 
+                                src={editImageUrl} 
+                                alt="New image preview" 
+                                className="w-full h-32 object-cover"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    )} */}
 
                     <div className="flex items-center space-x-2">
                     <button
@@ -230,6 +334,7 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
                         onClick={() => {
                         setIsEditing(false)
                         resetEdit()
+                        setEditImageUrl(comment.image_url ? comment.image_url : undefined)
                         }}
                         className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
@@ -238,7 +343,6 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
                     </div>
                 </div>
             ) : (
-
               /* Comment Content - View Mode */
               <>
                 <div className="text-start prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 mb-4">
@@ -316,7 +420,6 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
                     <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md flex-shrink-0">
                       <span className="text-white text-xs font-bold">
                         {getUserInitial(user?.email || '')}
-                        {/* {currentPost.user_id ? getUserInitial(currentPost.author_email) : 'A'} */}
                       </span>
                     </div>
                     <div className="flex-1">
@@ -343,7 +446,7 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
                             Add an image to your reply (optional)
                           </label>
                           <ImageUpload 
-                            onUpload={setReplyImageUrl} 
+                            onUpload={handleReplyImageUpload} 
                             label="Choose an image for your reply"
                           />
                           {replyImageUrl && (
@@ -360,7 +463,7 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
                         <div className="flex items-center space-x-2">
                           <button
                             type="submit"
-                            disabled={isReplySubmitting || !replyContent.trim()}
+                            disabled={isReplySubmitting || (!hasReplyContent && !hasReplyImage)}
                             className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center space-x-2"
                           >
                             {isReplySubmitting ? (
@@ -413,3 +516,6 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
     </div>
   )
 }
+
+
+

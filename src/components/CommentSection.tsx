@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../app/hooks'
 import { createComment } from '../features/blog/blogSlice'
 import { CommentItem } from './CommentItem'
@@ -12,7 +12,7 @@ import { Link } from 'react-router-dom'
 
 // Validation schema for comment form
 const commentSchema = z.object({
-  content: z.string().min(1, 'Comment cannot be empty'),
+  content: z.string().max(500, 'Comment must be 500 characters or less'),
 })
 
 type CommentFormData = z.infer<typeof commentSchema>
@@ -35,6 +35,8 @@ export function CommentSection({ postId }: CommentSectionProps) {
     register,
     handleSubmit,
     reset,
+    setError,
+    clearErrors,
     formState: { errors, isSubmitting },
     watch,
   } = useForm<CommentFormData>({
@@ -42,6 +44,14 @@ export function CommentSection({ postId }: CommentSectionProps) {
   })
 
   const commentContent = watch('content', '')
+  const hasCommentContent = commentContent.trim().length > 0
+  const hasCommentImage = Boolean(commentImageUrl)
+
+  useEffect(() => {
+    if (hasCommentContent || hasCommentImage) {
+      clearErrors('content')
+    }
+  }, [hasCommentContent, hasCommentImage, clearErrors])
 
   // Filter top-level comments (no parent_id)
   const topLevelComments = comments.filter(comment => !comment.parent_id)
@@ -51,12 +61,21 @@ export function CommentSection({ postId }: CommentSectionProps) {
       toast.error('You must be logged in to comment')
       return
     }
+
+    const trimmedContent = data.content.trim()
+    if (!trimmedContent && !commentImageUrl) {
+      setError('content', {
+        type: 'manual',
+        message: 'Add text or an image to post a comment.',
+      })
+      return
+    }
     
     try {
       await dispatch(createComment({
         postId,
         user_id: user.id,
-        content: data.content,
+        content: trimmedContent,
         image_url: commentImageUrl,
         author_email: user.email
       })).unwrap()
@@ -73,6 +92,10 @@ export function CommentSection({ postId }: CommentSectionProps) {
   // Get user initial for avatar
   const getUserInitial = (email: string) => {
     return email?.charAt(0).toUpperCase() || 'U'
+  }
+
+  const handleCommentImageUpload = (url: string) => {
+    setCommentImageUrl(url || undefined)
   }
 
   return (
@@ -134,7 +157,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
                   )}
 
                   <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                    <ImageUpload onUpload={setCommentImageUrl} />
+                    <ImageUpload onUpload={handleCommentImageUpload} />
                     {commentImageUrl && (
                       <div className="mt-3 rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 max-w-xs">
                         <img 
@@ -152,7 +175,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
                     </span>
                     <button
                       type="submit"
-                      disabled={isSubmitting || !commentContent.trim()}
+                      disabled={isSubmitting || (!hasCommentContent && !hasCommentImage)}
                       className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center space-x-2"
                     >
                       {isSubmitting ? (

@@ -183,9 +183,9 @@ export function CommentItem({ comment, postId, level = 0 }: CommentItemProps) {
   }
 
   // Remove image from comment
-  const handleRemoveImage = () => {
-    setEditImageUrl(null)
-  }
+  // const handleRemoveImage = () => {
+  //   setEditImageUrl(null)
+  // }
 
   // Find replies for this comment
   const replies = comments.filter(c => c.parent_id === comment.id)
